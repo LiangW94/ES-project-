@@ -13,7 +13,13 @@
 
 // new types
 #include "types.h"
-
+#include "FIFO.h"
+#include "MK70F12.h"
+#define BIT15TO13 0xe000
+#define RDRFSET 0x20
+#define TDRESET 0x80
+static TFIFO RxFIFO;
+static TFIFO TxFIFO;
 
 /*! @brief Sets up the UART interface before first use.
  *

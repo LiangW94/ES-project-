@@ -13,8 +13,9 @@
 
 // new types
 #include "types.h"
-#include "OS.h"
-
+#include "MK70F12.h"
+#include "Cpu.h"
+uint8_t data[3];
 typedef struct
 {
   uint8_t primarySlaveAddress;
@@ -22,8 +23,26 @@ typedef struct
   void (*readCompleteCallbackFunction)(void*);  /*!< The user's read complete callback function. */
   void* readCompleteCallbackArguments;          /*!< The user's read complete callback function arguments. */
 } TI2CModule;
-OS_ECB *I2CSemaphore;
-OS_ECB *I2CInUse;
+#define WRITE 0x00
+#define READ 0x01
+#define start() 	I2C0_C1 |= I2C_C1_TX_MASK;	\
+			I2C0_C1 |= I2C_C1_MST_MASK
+
+#define stop() 		I2C0_C1 &= ~I2C_C1_TX_MASK;	\
+			I2C0_C1 &= ~I2C_C1_MST_MASK
+
+//#define wait() 							\
+		while(!(I2C0_S & I2C_S_IICIF_MASK)) 	\
+		{}                                      \
+                I2C0_S |= I2C_S_IICIF_MASK
+
+/*! @brief return absolute value of input.
+ *
+ *  @param x is integer to be input.
+ *  @return absolute value of input.
+ */
+int ABS(int x);
+
 /*! @brief Sets up the I2C before first use.
  *
  *  @param aI2CModule is a structure containing the operating conditions for the module.
@@ -70,5 +89,6 @@ void I2C_IntRead(const uint8_t registerAddress, uint8_t* const data, const uint8
  *  @note Assumes the I2C module has been initialized.
  */
 void __attribute__ ((interrupt)) I2C_ISR(void);
+
 
 #endif

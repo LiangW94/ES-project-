@@ -1,85 +1,89 @@
 /*! @file
  *
- *  @brief Routines for controlling Periodic Interrupt Timer (PIT) on the TWR-K70F120M.
+ *  @brief PIT module: Routines for controlling Periodic Interrupt Timer (PIT) on the TWR-K70F120M.
  *
- *  This contains the functions for operating the periodic interrupt timer (PIT).
+ *  This module contains the functions for operating the periodic interrupt timer (PIT).
  *
- *  @author Liang Wang Thanawat Parthomsakulrat
- *  @date 2016-05-02
+ *  @author Liang Wang
+ *  @date 2016-06-28
  */
+
 /*!
 **  @addtogroup PIT_module PIT module documentation
 **  @{
 */
 /* MODULE PIT */
+
 // new types
-#include "types.h"
-#include "IO_Map.h"
-#include "PE_Types.h"
-#include "PE_Error.h"
-#include "PE_LDD.h"
-#include "PE_Const.h"
-#include "OS.h"
 #include "PIT.h"
 
-uint32_t moduleClk1;
+uint32_t modClk;                  /*!< a 32 bits modClk*/
+
+void (*userFunctionA)(void *);    /*!< Callback function. */
+
+void *userArgumentsA;             /*!< Callback function. */
 
 
-BOOL PIT_Init(const uint32_t moduleClk)
+BOOL PIT_Init(const uint32_t moduleClk, void (*userFunction)(void *), void *userArguments)
 {
+  /*!save status register and disable interrupt*/
+  EnterCritical();
+  userFunctionA  = userFunction;          /*!make userFunction to be userFunctionA we  before*/
+  userArgumentsA = userArguments;         /*!make userArguments to be userArgumentsA we  before*/
+  SIM_SCGC6  |= SIM_SCGC6_PIT_MASK;       /*!enable the clock gate*/
+  PIT_MCR    &= ~PIT_MCR_MDIS_MASK;       /*!enable PIT*/
+  PIT_MCR    |= PIT_MCR_FRZ_MASK;         /*!freezes timer*/
 
-
-  moduleClk1 = moduleClk;
-  SIM_SCGC6 |= SIM_SCGC6_PIT_MASK;    // enable PIT clock
-  PIT_MCR &= ~PIT_MCR_MDIS_MASK;      // clock for standard PIT timer is enabled
-  PIT_MCR |= PIT_MCR_FRZ_MASK;        // timer freezes in debug mode
-  PIT_TFLG0 |= PIT_TFLG_TIF_MASK;     // the flag is off
-  PIT_TCTRL0 |= PIT_TCTRL_TIE_MASK;   // enable PIT interrupts
-
-  NVICICPR2 |= 1 << 4;                // clear any pending interrupts on PIT
-  NVICISER2 |= 1 << 4;                // enable interrupts on PIT
-  PITSemaphore = OS_SemaphoreCreate(0);
-
+  PIT_TFLG0  |= PIT_TFLG_TIF_MASK;    	  /*!set TFLG[TIF]=1 to request interrupt*/
+  PIT_TCTRL0 |= PIT_TCTRL_TIE_MASK ;   	  /*!Request interrupt*/
+  PIT_TCTRL0 &= ~PIT_TCTRL_TEN_MASK;  	  /*!DISABLE THE TIMER*/
+  NVICICPR2   = (1<<4);     		  /*!clear any pending interrupts on PIT:  by using table 3-5 the PIT channel0's IRQ is 68 NCIC number is 2, using function 68 mode 32*/
+  NVICISER2   = (1<<4);    		  /*!enable interrupts from PIT module*/
+  /*!restore status register*/
+  ExitCritical();
+  modClk = moduleClk;                     /*!make 32 bit module clock in the function to be modClk we give before*/
   return bTRUE;
 }
 
 
+
 void PIT_Set(const uint32_t period, const BOOL restart)
 {
-  if (restart)
+  if(restart)
   {
-    PIT_Enable(bFALSE);          // disable the timer
-    PIT_LDVAL0 = ((period/1000)*(moduleClk1/1000000)) - 1; //period is in nano second
-    PIT_Enable(bTRUE);           // enable timer
+    PIT_TCTRL0 &= ~PIT_TCTRL_TEN_MASK;   		           /*!disable PIT*/
+    PIT_LDVAL0  = (uint32_t)(((period*0.000000001)*modClk)-1);     /*! set a new value*/
+    PIT_TCTRL0 |= PIT_TCTRL_TEN_MASK;   			   /*!enable the PIT*/
   }
   else
   {
-    PIT_LDVAL0 = ((period/1000)*(moduleClk1/1000000)) - 1;
-
+    PIT_LDVAL0 = (uint32_t)(((period*0.000000001)*modClk)-1);      /*! set a new value after a trigger event*/
   }
-
 }
 
 
 void PIT_Enable(const BOOL enable)
 {
-  if (enable)
-    PIT_TCTRL0 |= PIT_TCTRL_TEN_MASK;      // enable timer
+  if(enable)
+    PIT_TCTRL0|= PIT_TCTRL_TEN_MASK;                               /*! PIT is to be enabled.*/
   else
-    PIT_TCTRL0 &= ~PIT_TCTRL_TEN_MASK;     // disable timer
+    PIT_TCTRL0 &= ~PIT_TCTRL_TEN_MASK;                             /*! PIT is to be disabled.*/
 }
 
-
+/*! @brief Interrupt service routine for the PIT.
+ *
+ *  The periodic interrupt timer has timed out.
+ *  The user callback function will be called.
+ *  @note Assumes the PIT has been initialized.
+ */
 void __attribute__ ((interrupt)) PIT_ISR(void)
 {
-  PIT_TFLG0 |= PIT_TFLG_TIF_MASK;            // turn off the flag
-  OS_ISREnter();                             // Start of servicing interrupt
-  OS_SemaphoreSignal(PITSemaphore);
-  OS_ISRExit();                              // End of servicing interrupt
+  (*userFunctionA) (userArgumentsA);                               /*!call the user callback function*/
+  PIT_TFLG0 |= PIT_TFLG_TIF_MASK;                                  /*!set to one at the end of the timer period to this flag clear it*/
 }
 /* END PIT */
 /*!
- * @}
+** @}
 */
 
 

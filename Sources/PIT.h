@@ -13,8 +13,10 @@
 
 // new types
 #include "types.h"
-#include "OS.h"
-OS_ECB *PITSemaphore;
+#include "MK70F12.h"
+#include "LEDs.h"
+#include "Cpu.h"
+
 /*! @brief Sets up the PIT before first use.
  *
  *  Enables the PIT and freezes the timer when debugging.
@@ -24,7 +26,7 @@ OS_ECB *PITSemaphore;
  *  @return BOOL - TRUE if the PIT was successfully initialized.
  *  @note Assumes that moduleClk has a period which can be expressed as an integral number of nanoseconds.
  */
-BOOL PIT_Init(const uint32_t moduleClk);
+BOOL PIT_Init(const uint32_t moduleClk, void (*userFunction)(void*), void* userArguments);
 
 /*! @brief Sets the value of the desired period of the PIT.
  *

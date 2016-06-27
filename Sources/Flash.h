@@ -13,7 +13,9 @@
 
 // new types
 #include "types.h"
-
+#include "PE_Types.h"
+#include "Cpu.h"
+#include "MK70F12.h"
 // FLASH data access
 #define _FB(flashAddress)  *(uint8_t  volatile *)(flashAddress)
 #define _FH(flashAddress)  *(uint16_t volatile *)(flashAddress)

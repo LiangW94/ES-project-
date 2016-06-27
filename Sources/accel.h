@@ -13,7 +13,6 @@
 
 // New types
 #include "types.h"
-#include "OS.h"
 
 typedef enum
 {
@@ -41,7 +40,7 @@ typedef union
     uint8_t x, y, z;				/*!< The accelerometer data accessed as individual axes. */
   } axes;
 } TAccelData;
-OS_ECB *AccelSemaphore;
+
 #pragma pack(pop)
 
 

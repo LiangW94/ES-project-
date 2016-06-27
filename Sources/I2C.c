@@ -4,256 +4,224 @@
  *
  *  This contains the functions for operating the I2C (inter-integrated circuit) module.
  *
- *  @author Liang Wang Thanawat Parthomsakulrat
- *  @date 2016-05-16
+ *  @author Liang Wang
+ *  @date 2016-06-28
  */
 /*!
 **  @addtogroup I2C_module I2C module documentation
 **  @{
 */
 /* MODULE I2C */
+
 #include "I2C.h"
-#include "types.h"
-#include "IO_Map.h"
-#include <stdlib.h>
-#include "OS.h"
-
-#define THREAD_STACK_SIZE 500
-
-static uint8_t address;
-static uint8_t registerAddress1;
-static uint8_t data1;
-static uint8_t registerAddress2;
-static uint8_t *data2;
-static uint8_t bytes;
-static uint32_t I2CWriteThreadStack[THREAD_STACK_SIZE] __attribute__ ((aligned(0x08)));
-static uint32_t I2CPollReadThreadStack[THREAD_STACK_SIZE] __attribute__ ((aligned(0x08)));
-
-/*! @brief Send a start bit to I2C Module
- *
- *  @return void
- */
-void StartI2C()
+void(*userFunctionD)(void*);  	                /*!< Callback function. */
+void* userArgumentsD;        		        /*!< Callback function. */
+static uint8_t devadd;
+int ABS(int x)
 {
-  I2C0_C1 |= I2C_C1_MST_MASK;
-  I2C0_C1 |= I2C_C1_TX_MASK;
+  if(x<0)
+    x=-x;
+  return x;
 }
-
-/*! @brief Pause I2C Module
+/*! @brief Sets up the I2C before first use.
  *
- *  @return void
+ *  @param aI2CModule is a structure containing the operating conditions for the module.
+ *  @param moduleClk The module clock in Hz.
+ *  @return BOOL - TRUE if the I2C module was successfully initialized.
  */
-void PauseI2C()
+BOOL I2C_Init(const TI2CModule* const aI2CModule, const uint32_t moduleClk)
 {
-  int time = 0xFFFF;
-  while(time--);
-}
-/*! @brief Send a stop bit to I2C Module
- *
- *  @return void
- */
-void StopI2C()
-{
-  I2C0_C1 &=~ I2C_C1_MST_MASK;
-  I2C0_C1 &=~ I2C_C1_TX_MASK;
-}
-/*! @brief Acknowledge the data transfer
- *
- *  @return void
- */
-void AckI2C()
-{
-  while(!(I2C0_S & I2C_S_IICIF_MASK))
+  uint8_t mul, icr;
+  int baudRateError,baudRate,baudRateStoreError,baudRateStore = 0;
+  int i,l;
+  int scl[64] = {20,22,24,26,28,30,34,40,28,32,36,40,44,48,56,68,48,56,64,72,80,88,104,128,80,96,112,128,144,160,192,240,160,192,224,256,288,320,384,480,320,384,448,512,576,640,768,960,640,768,896,1024,1152,1280,1536,1920,1280,1536,1792,2048,2304,2560,3072,3840};
+  int mulValue[3] = {1,2,4};
+  SIM_SCGC4 |= SIM_SCGC4_IIC0_MASK; 	/*! Turn on clock to I2C0 module. */
+  SIM_SCGC5 |= SIM_SCGC5_PORTE_MASK; 	/*!enable the PORTE clock gate.*/
+  PORTE_PCR18 = PORT_PCR_MUX(4);  	/*!Set MUX(bit 10 to 8) to 4(100) in PORTE18 to choose ALT4 to choose I2C0_SDA.*/
+  PORTE_PCR19 = PORT_PCR_MUX(4);  	/*!Set MUX(bit 10 to 8) to 4(100) in PORTE19 to choose ALT4 to choose I2C0_SCL.*/
+  userFunctionD = aI2CModule->readCompleteCallbackFunction;  	                /*!< Callback function. */
+  userArgumentsD = aI2CModule->readCompleteCallbackArguments;
+  devadd = aI2CModule->primarySlaveAddress;                  	/*Primary Slave-address*/
+  for(i = 0; i <= 63; i++)
   {
-
+    for(l = 0; l <= 2; l++)
+    {
+      baudRate = (int)moduleClk / (mulValue[l]*scl[i]);
+      baudRateError = (int)aI2CModule->baudRate - baudRate;
+      baudRateStoreError = (int)aI2CModule->baudRate - baudRateStore;
+      if(ABS(baudRateError) < ABS(baudRateStoreError))
+      {
+	mul = l;
+  	icr = i;
+  	baudRateStore = baudRate;
+      }
+    }
   }
-  I2C0_S = I2C_S_IICIF_MASK;
-
+  I2C0_F |= mul<<6;
+  I2C0_F |= icr;
+  I2C0_C1 |= I2C_C1_IICEN_MASK;   	/* enable IIC */
+  I2C0_C1 |= I2C_C1_IICIE_MASK;   	/* interrupt enable */
+  I2C0_C1 |= I2C_C1_MST_MASK;		/* enable master mode*/
+  I2C0_C1 |= I2C_C1_TX_MASK;		/* enable Transmit mode*/
+  //NVICICPR0 |= (1<<24);
+ // NVICISER0 |= (1<<24);
+  return bTRUE;
 }
-/*! @brief Send a restart bit to I2C Module
- *
- *  @return void
+
+/*! @brief send device address to slave
  */
-void RestartI2C()
+
+
+/*void I2C_Start(void)
 {
-  I2C0_C1 |= I2C_C1_RSTA_MASK;
+  uint8_t data = WRITE;
+ data |= (devadd<<1);
+  start();
+  I2C0_D = data;
+}*/
+
+
+/*! @brief pause the program in certain time.
+ */
+void Pause(void)
+{
+  int i;
+  for(i = 0; i < 50; i++)
+  {
+    __asm ("nop");
+  }
+}
+void I2C_Wait(void)                                                                   //gaiguyo
+{
+		while(!(I2C0_S & I2C_S_IICIF_MASK))
+		{}
+                I2C0_S |= I2C_S_IICIF_MASK;
+}
+/*! @brief Selects the current slave device
+ *
+ * @param slaveAddress The slave device address.
+ */
+void I2C_SelectSlaveDevice(const uint8_t slaveAddress)
+{
+  devadd = slaveAddress;
 }
 
 /*! @brief Write a byte of data to a specified register
  *
- *  @param pData is not used but is required by the OS to create a thread.
+ * @param registerAddress The register address.
+ * @param data The 8-bit data to write.
  */
-static void I2CWriteThread(void *pData)
+void I2C_Write(const uint8_t registerAddress, const uint8_t data)
 {
-  for(;;)
-  {
-    (void) OS_SemaphoreWait(I2CInUse, 0);
-    while (I2C0_S & I2C_S_BUSY_MASK)
-    {
-
-    }
-    StartI2C();
-    I2C0_D = (address << 1) & 0x10;
-    AckI2C();
-    I2C0_D = registerAddress1;
-    AckI2C();
-    I2C0_D = data1;
-    AckI2C();
-    StopI2C();
-    PauseI2C();
-  }
-
+  //I2C_Start();
+  start() ;
+  //I2C_Wait();
+  I2C0_D = registerAddress;
+  I2C_Wait();
+  I2C0_D = data;
+  I2C_Wait();
+  stop();
+  Pause();
 }
 
 /*! @brief Reads data of a specified length starting from a specified register
  *
  * Uses polling as the method of data reception.
- * @param pData is not used but is required by the OS to create a thread.
+ * @param registerAddress The register address.
+ * @param data A pointer to store the bytes that are read.
+ * @param nbBytes The number of bytes to read.
  */
-static void I2CPollReadThread(void *pData)
-{
-  for(;;)
-  {
-    (void) OS_SemaphoreWait(I2CInUse, 0);
-     while (I2C0_S & I2C_S_BUSY_MASK)
-     {
-
-     }
-     StartI2C();
-     I2C0_D = (address << 1) & 0x10;    // Send slave address with write bit
-     AckI2C();                          // Acknowledge the data transfer
-     I2C0_D = registerAddress2;         // Send slave register address
-     AckI2C();
-     RestartI2C();                      // Send a restart bit to I2C Module
-     I2C0_D = (address << 1) | 0x01;    // Send slave address with read bit
-     AckI2C();
-     I2C0_C1 &= ~I2C_C1_TX_MASK;       // Receive mode
-     I2C0_C1 &= ~I2C_C1_TXAK_MASK;     // Turn on ACK from master
-     *data2 = I2C0_D;                  // dummy read
-     AckI2C();
-     for (int i = 0; i < bytes -2; i++)
-     {
-       *data2 = I2C0_D;
-        data2++;
-        AckI2C();
-     }
-     I2C0_C1 |= I2C_C1_TXAK_MASK; // NACK from master
-     *data2 = I2C0_D;
-     data2++;
-     AckI2C();
-     StopI2C();           // STOP signal
-     *data2 = I2C0_D;     // ignore last byte
-     PauseI2C();
-  }
-}
-/*! @brief Sets up the baudrate of I2C
- *
- *  @param aI2CModule is a structure containing the operating conditions for the module.
- *  @param moduleClk The module clock in Hz.
- *  @return void
- */
-void SetBaudrate (const TI2CModule* const aI2CModule, const uint32_t moduleClk)
-{
-  uint8_t mult;                                     // value to calculate baudrate
-  uint8_t icr;
-  int val;
-  int difference;
-  int baudrate = 0;
-  int mul[3] = {1,2,4};
-  int scl[64] = {20,22,24,26,28,30,34,40,28,32,36,40,44,48,56,68,48,56,64,72,80,88,104,
-                128,80,96,112,128,144,160,192,240,160,192,224,256,288,320,384,480,320,384,
-		448.512,576,640,768,960,640,768,896,1024,1152,1280,1536,1920,1280,1536,1792,
-		2048,2304,2560,3072,3840};
-  int i,j;
-  for (i = 0; i < 64; i++)
-  {
-    for (j = 0; j < 3; j++)
-    {
-      val = moduleClk / (mul[j] * scl[i]);                                  // finding the closest value for baudrate
-      difference = aI2CModule -> baudRate - val;
-      if (abs(difference) < abs (aI2CModule -> baudRate - baudrate))
-      {
-        mult = j;
-        icr = i;
-        baudrate = val;
-      }
-    }
-
-  }
-  I2C0_F |= mult << 6;
-  I2C0_F |= icr;
-}
-BOOL I2C_Init(const TI2CModule* const aI2CModule, const uint32_t moduleClk)
-{
-  OS_ERROR error;
-  SIM_SCGC4 |= SIM_SCGC4_IIC0_MASK;                   // enable IIC0 module
-  SIM_SCGC5 |= SIM_SCGC5_PORTE_MASK;                  // enable PORTE
-  PORTE_PCR18 = PORT_PCR_MUX(4);                      // enable IIC0_SDA
-  PORTE_PCR19 = PORT_PCR_MUX(4);                      // enable IIC0_CLK
-  SetBaudrate(aI2CModule, moduleClk);
-  I2C0_C1 |= I2C_C1_IICEN_MASK;                       // enable I2C
-  I2C_SelectSlaveDevice(aI2CModule -> primarySlaveAddress);
-  I2CSemaphore = OS_SemaphoreCreate(0); // I2CSemaphore semaphore initialized to 1
-  I2CInUse = OS_SemaphoreCreate(0);     // I2CInUse semaphore initialized to 1
-  error = OS_ThreadCreate(I2CWriteThread,
-			  NULL,
-			  &I2CWriteThreadStack[THREAD_STACK_SIZE - 1],     // Highest priority
-			  0);
-
-  error = OS_ThreadCreate(I2CPollReadThread,
-			  NULL,
-			  &I2CPollReadThreadStack[THREAD_STACK_SIZE - 1],  // 2st priority
-			  1);
-  return bTRUE;
-
-}
-
-
-void I2C_SelectSlaveDevice(const uint8_t slaveAddress)
-{
-  address = slaveAddress; // Store the slave address globally(private)
-
-}
-
-
-void I2C_Write(const uint8_t registerAddress, const uint8_t data)
-{
-  registerAddress1 = registerAddress;
-  data1 = data;
-  (void)OS_SemaphoreSignal(I2CInUse); // Wait for previous write to slave device is complete
-
-}
-
-
 void I2C_PollRead(const uint8_t registerAddress, uint8_t* data, const uint8_t nbBytes)
 {
-  registerAddress2 = registerAddress;
-  data2 = data;
-  bytes = nbBytes;
-  (void)OS_SemaphoreSignal(I2CInUse); // Wait for previous write to slave device is complete
+  static int i;
+  uint8_t addBit,empdata;
+  //I2C_Start();
+  start() ;
+  //I2C_Wait();                                                //gaiguo  wait
+  addBit = READ;                          /////////////
+  addBit &= ~devadd<<1;                  //////////////
+  I2C0_D = addBit;                     /////////////
+  I2C_Wait();                            /////////
+  I2C0_D =registerAddress;
+  I2C_Wait();
+  I2C0_C1 |= I2C_C1_RSTA_MASK;
+  addBit = READ;
+  addBit |= devadd<<1;
+  I2C0_D = addBit;
+  I2C_Wait();
+  I2C0_C1 &= ~I2C_C1_TX_MASK;
+  I2C0_C1 &= ~I2C_C1_TXAK_MASK;
+  empdata = I2C0_D;
+  I2C_Wait();
+  for(i = 0; i < nbBytes-1; i++)
+  {
+    if(i == (nbBytes-2))
+      I2C0_C1 |= I2C_C1_TXAK_MASK;
+    *data = I2C0_D;
+    data++;
+    I2C_Wait();
+  }
+  stop();
+  *data = I2C0_D;
+  Pause();                                       /////////////////houjiade
 }
-
-
-void I2C_IntRead(const uint8_t registerAddress, uint8_t* const data, const uint8_t nbBytes)
+/*! @brief Reads data of a specified length starting from a specified register
+ *
+ * Uses interrupts as the method of data reception.
+ * @param registerAddress The register address.
+ * @param data A pointer to store the bytes that are read.
+ * @param nbBytes The number of bytes to read.
+ */
+void I2C_IntRead(const uint8_t registerAddress, uint8_t* data, const uint8_t nbBytes)
 {
-  I2C0_C1 = registerAddress;
-  *data = I2C0_C1;
-  I2C0_C1 |= I2C_C1_IICIE_MASK; // I2C enable
-  NVICICPR0 |= (1 << 24);       // Clear any pending interrupts on I2C0
-  NVICISER0 |= (1 << 24);       // Enable interrupts on I2C0
-
+  I2C0_S |= I2C_S_IICIF_MASK;
+  int i;
+  uint8_t empdata, addBit;
+  //I2C_Start();
+  start() ;
+  //I2C_Wait();
+  addBit = READ;                          /////////////
+  addBit &= ~devadd<<1;                  //////////////
+  I2C0_D = addBit;                     /////////////
+  I2C_Wait();                            /////////
+  I2C0_D = registerAddress;
+  I2C_Wait();
+  I2C0_C1 |= I2C_C1_RSTA_MASK;  //restart
+  addBit = READ;
+  addBit |= devadd<<1;
+  I2C0_D = addBit;
+  //I2C_Wait();
+  I2C0_C1 &=~ I2C_C1_TX_MASK;
+  I2C0_C1 &=~ I2C_C1_TXAK_MASK;
+  empdata = I2C0_D;
+  I2C_Wait();
+  for(i = nbBytes; i > 1; i--)
+  {
+    if(i == 2)
+      I2C0_C1 |= I2C_C1_TXAK_MASK;
+    *data = I2C0_D;
+    data++;
+    I2C_Wait();
+  }
+  stop();
+  *data = I2C0_D;
+  Pause();
 }
 
-
-void __attribute__ ((interrupt)) I2C_ISR(void)
+/*! @brief Interrupt service routine for the I2C.
+ *
+ *  Only used for reading data.
+ *  At the end of reception, the user callback function will be called.
+ *  @note Assumes the I2C module has been initialized.
+ */
+/*void __attribute__ ((interrupt)) I2C_ISR(void)
 {
-  I2C0_S |= I2C_S_IICIF_MASK;                       // Clear interrupt flag
-  OS_ISREnter();                                    // Start of servicing interrupt
-  (void)OS_SemaphoreSignal(I2CSemaphore);
-  OS_ISRExit();                                     // End of servicing interrupt
+  I2C0_S |= I2C_S_IICIF_MASK;
+  (*userFunctionD)(userArgumentsD);
 }
+*/
 /* END I2C */
 /*!
- * @}
+** @}
 */
-

@@ -13,8 +13,8 @@
 
 // new types
 #include "types.h"
-#include "OS.h"
-
+#include "PE_Types.h"
+#include "Cpu.h"
 // Number of bytes in a FIFO
 #define FIFO_SIZE 256
 
@@ -27,11 +27,7 @@ typedef struct
   uint16_t End; 		/*!< The index of the next available empty position in the FIFO */
   uint16_t volatile NbBytes;	/*!< The number of bytes currently stored in the FIFO */
   uint8_t Buffer[FIFO_SIZE];	/*!< The actual array of bytes to store the data */
-  OS_ECB *SpaceAvailable;
-  OS_ECB *ItemsAvailable;
-  OS_ECB *BufferAccess;
 } TFIFO;
-
 
 /*! @brief Initialize the FIFO before first use.
  *
@@ -56,6 +52,6 @@ BOOL FIFO_Put(TFIFO* const FIFO, const uint8_t data);
  *  @return BOOL - TRUE if data is successfully retrieved from the FIFO.
  *  @note Assumes that FIFO_Init has been called.
  */
-BOOL FIFO_Get(TFIFO* const FIFO, uint8_t volatile * const dataPtr);
+BOOL FIFO_Get(TFIFO* const FIFO, uint8_t* const dataPtr);
 
 #endif
