@@ -1,19 +1,17 @@
 /*! @file
  *
- *  @brief HAL for the accelerometer.
+ *  @brief Accel module.
  *
- *  This contains the functions for interfacing to the MMA8451Q accelerometer.
+ *  This module contains the structure and "methods" for accelerator.
  *
- *  @author Liang Wang Thanawat Parthomsakulrat
- *  @date 2016-5-16
+ *  @author Liang Wang
+ *  @date 2016-06-28
  */
-
-
 /*!
-**  @addtogroup accel_module accel module documentation
-**  @{
+ *  @addtogroup ACCEL_module ACCEL module documentation
+ *  @{
 */
-/* MODULE accel */
+/* MODULE ACCEL */
 
 // Accelerometer functions
 #include "accel.h"
@@ -30,7 +28,6 @@
 // CPU and PE_types are needed for critical section variables and the defintion of NULL pointer
 #include "CPU.h"
 #include "PE_types.h"
-#include "OS.h"
 
 // Accelerometer registers
 #define ADDRESS_OUT_X_MSB 0x01
@@ -186,78 +183,92 @@ static union
 #define CTRL_REG5_INT_CFG_FIFO		CTRL_REG5_Union.bits.INT_CFG_FIFO
 #define CTRL_REG5_INT_CFG_ASLP		CTRL_REG5_Union.bits.INT_CFG_ASLP
 
+void (*userFunctionF)(void*);/*!< a global function  */
+void* userArgumentsF;        /*!< a global argument */
 
-static TAccelMode accelMode;
-
-BOOL Accel_Init(const TAccelSetup* const accelSetup)
-{
-  SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;    // enable PORTB
-  PORTB_PCR4 = PORT_PCR_MUX(1);
-
-  I2C_Write (ADDRESS_CTRL_REG1, 0x03);
-  I2C_Write (ADDRESS_CTRL_REG3, 0x02);  // interrupt polarity high
-  I2C_Write (ADDRESS_CTRL_REG4, 0x00);  // disable interrupts
-  AccelSemaphore = OS_SemaphoreCreate(0);
-  return bTRUE;
-}
-
-
-void Accel_ReadXYZ(uint8_t data[3])
-{
-  uint8_t dataarray[3][3];
-
-  int i;
-  for (i = 0; i < 3; i++)
-  {
-    I2C_PollRead(ADDRESS_OUT_X_MSB, dataarray[i], 3);
-
-  }
-
-  data[0] = Median_Filter3(dataarray[0][0], dataarray[1][0], dataarray[2][0]);
-  data[1] = Median_Filter3(dataarray[0][1], dataarray[1][1], dataarray[2][1]);
-  data[2] = Median_Filter3(dataarray[0][2], dataarray[1][1], dataarray[2][2]);
-
-}
-
-
+/*! @brief Set the mode of the accelerometer.
+ *  @param mode specifies either polled or interrupt driven operation.
+ */
 void Accel_SetMode(const TAccelMode mode)
 {
   if (mode == ACCEL_POLL)
   {
-    accelMode = mode;
-    PORTB_PCR4 |= PORT_PCR_IRQC(0);          // disable flag
-    I2C_Write (ADDRESS_CTRL_REG1, 0x03);
-    I2C_Write (ADDRESS_CTRL_REG4, 0x00);     // disable interrupts
-    I2C_Write (ADDRESS_CTRL_REG5, 0x00);
-    NVICICPR2 |= 0 << 24;
-    NVICISER2 |= 0 << 24;
-
+      I2C0_C1 &= ~I2C_C1_IICIE_MASK;                    ///////////////////////
+    PORTB_PCR4 |= PORT_PCR_IRQC(9) ;
+    I2C_Write(ADDRESS_CTRL_REG1, 0x03);          //////////////////////
+    I2C_Write(ADDRESS_CTRL_REG4, 0x00);
+    NVICICPR2 |= (0<<24);
+    NVICISER2 |= (0<<24);
+    NVICICPR0 = (1<<24);                              ////////////////////
+    NVICISER0 = (1<<24);                                 ///////////////////////
   }
-  else if (mode == ACCEL_INT)
+  if(mode ==ACCEL_INT)
   {
-    accelMode = mode;
-    PORTB_PCR4 |= PORT_PCR_IRQC(9);          // flag and interrupt on rising edge
-    I2C_Write (ADDRESS_CTRL_REG1, 0x3B);     // frequency set to 1.56 Hz
-    I2C_Write (ADDRESS_CTRL_REG4, 0x01);     // enable interrupts
-    I2C_Write (ADDRESS_CTRL_REG5, 0x01);     // interrupt is routed to INT0 pin
-    NVICICPR2 |= 1 << 24;
-    NVICISER2 |= 1 << 24;
+    I2C0_C1 |= I2C_C1_IICIE_MASK;                    ///////////////////////
+    PORTB_PCR4|=PORT_PCR_IRQC(9) ;
+    I2C_Write(ADDRESS_CTRL_REG1, 0x3B);          //////////////////////
+    I2C_Write(ADDRESS_CTRL_REG4, 0x01);
+    NVICICPR2 = (1<<24);
+    NVICISER2 = (1<<24);
+    NVICICPR0 = (1<<24);                              ////////////////////
+    NVICISER0 = (1<<24);                                 ///////////////////////
 
   }
 
 }
 
+/*! @brief Initializes the accelerometer by calling the initialization routines of the supporting software modules.
+ *
+ *  @param accelSetup is a pointer to an accelerometer setup structure.
+ *  @return BOOL - TRUE if the accelerometer module was successfully initialized.
+ */
+BOOL Accel_Init(const TAccelSetup* const accelSetup)
+{
+  SIM_SCGC5  |= SIM_SCGC5_PORTB_MASK;
+  PORTB_PCR4 |= PORT_PCR_MUX(1)  ;
+  //I2C_Write(ADDRESS_CTRL_REG2, 0x40);
+  //I2C_Write(ADDRESS_CTRL_REG1, 0x03);
+  //I2C_Write(ADDRESS_CTRL_REG3, 0x02);
+  //I2C_Write(ADDRESS_CTRL_REG5, 0x01);
+  I2C_Write(ADDRESS_CTRL_REG1, 0x03);          /////////////////
+  I2C_Write(ADDRESS_CTRL_REG3, 0x02);          ////////////////
+  I2C_Write(ADDRESS_CTRL_REG4, 0x00);          //////////////////
+  I2C_Write(ADDRESS_CTRL_REG5, 0x01);          /////////////////
+  //Accel_SetMode(ACCEL_POLL);
+  userArgumentsF=accelSetup->dataReadyCallbackArguments;
+  userFunctionF=accelSetup->dataReadyCallbackFunction;
+  return bTRUE;
+}
 
-void __attribute__ ((interrupt)) AccelDataReady_ISR(void)
+/*! @brief Reads X, Y and Z accelerations.
+ *  @param data is a an array of 3 bytes where the X, Y and Z data are stored.
+ */
+void Accel_ReadXYZ(uint8_t data[3])
+{
+  int i;
+  static uint8_t temp[3][3];
+  for(i=0;i<3;i++)
+  {
+    I2C_PollRead(ADDRESS_OUT_X_MSB, temp[i], 3);
+  }
+  data[0] = Median_Filter3(temp[0][0], temp[1][0], temp[2][0]);
+  data[1] = Median_Filter3(temp[0][1], temp[1][1], temp[2][1]);
+  data[2] = Median_Filter3(temp[0][2], temp[1][2], temp[2][2]);
+}
+
+/*! @brief Interrupt service routine for the accelerometer.
+ *
+ *  The accelerometer has data ready.
+ *  The user callback function will be called.
+ *  @note Assumes the accelerometer has been initialized.
+*/
+/*void __attribute__ ((interrupt)) AccelDataReady_ISR(void)
 {
   PORTB_PCR4 |= PORT_PCR_ISF_MASK;
-  OS_ISREnter();                              // Start of servicing interrupt
-  (void)OS_SemaphoreSignal(AccelSemaphore);   // increase semaphore to one signal for I2C read
-  OS_ISRExit();                               // End of servicing interrupt
-
+  (*userFunctionF)(userArgumentsF);
 }
-
-/* END accel */
+*/
+/* END ACCEL */
 /*!
  * @}
 */

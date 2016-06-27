@@ -1,52 +1,45 @@
 /*! @file
  *
- *  @brief Median filter.
+ *  @brief Median module.
  *
- *  This contains the functions for performing a median filter on byte-sized data.
+ * This module contains the structure and "methods" for getting median.
  *
- *  @author PMcL
- *  @date 2015-10-12
+ *  @author Liang Wang
+ *  @date 2016-06-28
  */
 /*!
-**  @addtogroup median_module median module documentation
+**  @addtogroup Median_module Median module documentation
 **  @{
 */
 /* MODULE median */
-
 #include "median.h"
-
+/*! @brief Median filters 3 bytes.
+ *
+ *  @param n1 is the first  of 3 bytes for which the median is sought.
+ *  @param n2 is the second of 3 bytes for which the median is sought.
+ *  @param n3 is the third  of 3 bytes for which the median is sought.
+ */
 uint8_t Median_Filter3(const uint8_t n1, const uint8_t n2, const uint8_t n3)
 {
-
-  if (n1 > n2)
+  int a,b;
+  if(n1 >= n2)
   {
-    if (n2 > n3)
-      return (n2);
-    else
-    {
-      if (n1 > n3)
-        return (n3);
-      else
-        return (n1);
-    }
+    a = n1;
+    b = n2;
   }
+
   else
   {
-    if (n3 > n2)
-      return (n2);
-    else
-    {
-      if (n1 > n3)
-        return (n1);
-      else
-        return (n3);
-    }
+    a = n2;
+    b = n1;
   }
+  if(n3 >= a)
+    return a;
+  else if(n3 > b)
+    return n3;
+  return b;
 }
 /* END median */
 /*!
- * @}
+** @}
 */
-
-
-

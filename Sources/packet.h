@@ -13,7 +13,7 @@
 
 // New types
 #include "types.h"
-
+#include "UART.h"
 // Packet structure
 #define PACKET_NB_BYTES 5
 
@@ -22,7 +22,7 @@
 
 typedef union
 {
-  uint8_t bytes[PACKET_NB_BYTES];     /*!< The packet as an array of bytes. */
+  uint8_t Bytes[PACKET_NB_BYTES];     /*!< The packet as an array of bytes. */
   struct
   {
     uint8_t command;		      /*!< The packet's command. */

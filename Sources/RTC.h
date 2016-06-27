@@ -13,10 +13,7 @@
 
 // new types
 #include "types.h"
-#include "OS.h"
-
-OS_ECB *RTCSemaphore;
-
+#include "Cpu.h"
 /*! @brief Initializes the RTC before first use.
  *
  *  Sets up the control register for the RTC and locks it.
@@ -25,7 +22,7 @@ OS_ECB *RTCSemaphore;
  *  @param userArguments is a pointer to the user arguments to use with the user callback function.
  *  @return BOOL - TRUE if the RTC was successfully initialized.
  */
-BOOL RTC_Init();
+BOOL RTC_Init(void (*userFunction)(void*), void* userArguments);
 
 /*! @brief Sets the value of the real time clock.
  *

@@ -4,7 +4,7 @@
  *
  *  This contains the functions for operating the LEDs.
  *
- *  @author Liang Wang Thanawat Parthomsakulrat
+ *  @author Liang Wang
  *  @date 2016-04-12
  */
 /*!
@@ -42,13 +42,13 @@ BOOL LEDs_Init(void)
 
 void LEDs_On(const TLED color)
 {
-  GPIOA_PCOR |= color;             // turn the led on
+  GPIOA_PCOR |= color;             // turn the led on port, clear to turn on
 }
 
 
 void LEDs_Off(const TLED color)
 {
-  GPIOA_PSOR |= color;              //turn the led off
+  GPIOA_PSOR |= color;              //turn the led off, port set to turn off
 }
 
 
