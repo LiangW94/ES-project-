@@ -14,10 +14,10 @@
 #include "debounce.h"
 
 
-BOOL Debounce(void)
-{
-  static int counter =0;
-  if (counter == 50)
+BOOL Debounce(void) {
+  static int counter =0;  
+  
+  if (counter == 50) //accumulate a number of consecutive stable values to debounce the input
   {
     counter = 0;
     return bFALSE;

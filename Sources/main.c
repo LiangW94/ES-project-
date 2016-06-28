@@ -1,10 +1,10 @@
 /* ###################################################################
 **     Filename    : main.c
-**     Project     : Lab3
+**     Project     : Lab4
 **     Processor   : MK70FN1M0VMJ12
 **     Version     : Driver 01.01
 **     Compiler    : GNU C Compiler
-**     Date/Time   : 2015-09-19, 13:27, # CodeGen: 0
+**     Date/Time   : 2016-06-15, 18:18, # CodeGen: 0
 **     Abstract    :
 **         Main module.
 **         This module contains user's application code.
@@ -45,7 +45,7 @@
 #include "TSI.h"
 #include "RNG.h"
 #include "SW.h"
-#define BAUDRATE 115200                               /*!< baud rate a value 115200*/
+#define BAUDRATE 115200                               /*!<baud rate a value 115200*/
 #define TOWER_STARTUP_CMD 0x04                        /*!<0x04 is TOWER_STARTUP_CMD*/
 #define TOWER_GETVERSION_CMD 0x09                     /*!<0x09 is TOWER_GETVERSION_CMD*/
 #define TOWER_NUMBER_CMD 0x0B                         /*!<0x0B is TOWER_NUMBER_CMD*/
@@ -75,13 +75,14 @@ static uint16_t *towerMd;                             /*!< pointer to tower towe
 static uint8_t h,m,s;                                 /*!< hours and seconds */
 static uint8_t score;
 
-static uint8_t accMode = 0;                            /*!< signal mode select */
-static TFTMChannel aFTMChannel;		              /*!< pre seting aFTMChannel */
+static uint8_t accMode = 0;                           /*!< signal mode select */
+static TFTMChannel aFTMChannel;		                    /*!< pre seting aFTMChannel */
 
 TPacket Packet;
 
 static TI2CModule aI2CModule;
 TAccelSetup accelSetup;
+
 /*! @brief asynchronous read.
  *
  */
@@ -133,6 +134,7 @@ void I2C_Callback()
 
   temp1[i] = data[i];
   i++;
+  //Put the median value into the original data array
   x = Median_Filter3(temp1[0], temp2[0], temp3[0]);
   y = Median_Filter3(temp1[1], temp2[1], temp3[1]);
   z = Median_Filter3(temp1[2], temp2[2], temp3[2]);
@@ -162,23 +164,22 @@ BOOL Tower_Setup(void)
   aFTMChannel.channelNb = 0;			/*!choose channel 0*/
   aFTMChannel.timerFunction = TIMER_FUNCTION_OUTPUT_COMPARE; /*!choose timer function as OUTPUT_COMPARE.*/
   aFTMChannel.userFunction = &FTM0_Callback;   /*!choose user function as FTM0_Callback.*/
-  aI2CModule.baudRate = 100000;                                          ////////////////////
+  aI2CModule.baudRate = 100000;                                        
   aI2CModule.primarySlaveAddress = 0x1D;
-  aI2CModule.readCompleteCallbackFunction = I2C_Callback;             ///////////////&
-  //accelSetup.dataReadyCallbackFunction = AccCallback;                  ////////////////&
-  return Packet_Init(BAUDRATE, CPU_BUS_CLK_HZ) &&
-	 Flash_Init() &&
-	 PIT_Init(CPU_BUS_CLK_HZ, &PIT_Callback, NULL)&&
-	 RTC_Init(&RTC_Callback, NULL)&&
-	 FTM_Init()&&
-	 LEDs_Init() &&
-	 I2C_Init(&aI2CModule,CPU_BUS_CLK_HZ) &&                       /////////////////////////////
-	 Accel_Init(&accelSetup) &&
-	 RNG_Init() &&
-	 SW_Init() &&
-	 TSI_Init();
-}
+  aI2CModule.readCompleteCallbackFunction = I2C_Callback;            
 
+  return Packet_Init(BAUDRATE, CPU_BUS_CLK_HZ) &&
+	       Flash_Init() &&
+	       PIT_Init(CPU_BUS_CLK_HZ, &PIT_Callback, NULL)&&
+	       RTC_Init(&RTC_Callback, NULL)&&
+	       FTM_Init()&&
+	       LEDs_Init() &&
+	       RNG_Init() &&                        
+	       Accel_Init(&accelSetup) &&
+	       I2C_Init(&aI2CModule,CPU_BUS_CLK_HZ) && 
+	       SW_Init() &&
+	       TSI_Init();
+}
 
 /*! @brief initialize the tower.
  *  when start up PC can get four packets from tower automatically
@@ -344,6 +345,11 @@ BOOL Handle_TowerTime_Packet(void)
     return Packet_Put(TOWER_TIME_CMD, Packet_Parameter1, Packet_Parameter2,Packet_Parameter3);
   }
 }
+
+/*! @brief handle the AccelMode_Packet.
+ * 
+ *  @return BOOL 
+ */
 BOOL Handle_AccelMode_Packet(void)
 {
   if (Packet_Parameter1 == 1 && Packet_Parameter2 == 0 && Packet_Parameter3 == 0)
@@ -366,6 +372,10 @@ BOOL Handle_AccelMode_Packet(void)
   }
 }
 
+/*! @brief handle the game packet.
+ * 
+ *  @return packet_Put() to get packet 
+ */
 BOOL Handle_Game_Packet(void)
 {
   if (Packet_Parameter1 == 0 && Packet_Parameter2 == 0 && Packet_Parameter3 == 0)
@@ -374,23 +384,25 @@ BOOL Handle_Game_Packet(void)
   }
 }
 
-/*! @brief Sets up TSI game .
+/*! @brief Sets up memory game .
  *
+ *  @return void
  */
 void Game(void)
 {
   TLED color[4] = {LED_BLUE, LED_GREEN, LED_YELLOW, LED_ORANGE};
-  int sequence[32];
-  int currentColor,i,n,s,j,k;
-  BOOL keepgoing;
-  FTM0_CnSC(0) &= ~FTM_CnSC_CHIE_MASK;
-  FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;
-  for (i = 0;i < 4;i++)
+  int sequence[32];                       //array to store the sequence
+  int currentColor,i,s;
+  BOOL keepgoing;                         //flag to indicade the game keep going
+  FTM0_CnSC(0) &= ~FTM_CnSC_CHIE_MASK;    //Stop any future interrupts from occurring (stop the timer)
+  FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;     //Clear the Interrupt Flag
+  
+  for (i = 0;i < 4;i++)                   //turn off leds
     LEDs_Off(color[i]);
 
   for (;;)
   {
-   /* if(readStart()&&!keepgoing)
+   /* if(readStart()&&!keepgoing)         
     {
       for(j=0;j<32;j++)
       {
@@ -401,12 +413,12 @@ void Game(void)
     for(k=0;k<6;k++)
     {
       for(i=0;i<4;i++)
-	LEDs_On(color[i]);
+	    LEDs_On(color[i]);
       FTM_StartTimer(&aFTMChannel,8138);
       while((FTM0_CnSC(0)& FTM_CnSC_CHF_MASK)==0) {}
-      FTM0_CnSC(0)&= ~FTM_CnSC_CHF_MASK;
+      FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;            //Clear the Interrupt Flag
       for(i=0;i<4;i++)
-	LEDs_Off(color[i]);
+	   LEDs_Off(color[i]);
     }
     }
     */
@@ -415,19 +427,16 @@ void Game(void)
     LEDs_On(color[currentColor]);                 //turn on led
     FTM_StartTimer(&aFTMChannel,24414);           //flash for 1 second
     while((FTM0_CnSC(0)& FTM_CnSC_CHF_MASK)==0) {}
-    FTM0_CnSC(0)&= ~FTM_CnSC_CHF_MASK;
-    LEDs_Off(color[currentColor]);
-    //for(n =1;n<10000000; n++)
-   // {
-   //   __asm("nop");
-   // }
+    FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;           //Clear the Interrupt Flag
+    LEDs_Off(color[currentColor]);                //Turn off current led
+
     if (TSI_ReadStart())
     {
       sequence[s] = currentColor;
       s++;
       keepgoing = bTRUE;
     }
-    if(Mode()!= 2)
+    if(Mode() != 2)
     {
       FTM0_CnSC(0) |= FTM_CnSC_CHIE_MASK;
       FTM0_CnSC(0) |= FTM_CnSC_CHF_MASK;
@@ -436,9 +445,9 @@ void Game(void)
   }
 }
 
-
 /*! @brief check touch pad.
- *
+ *  wait if no touch input has occurred for 5 seconds, the mode returns to the default
+ *  @return void
  */
 void CheckTouchPad(void)
 {
@@ -447,17 +456,17 @@ void CheckTouchPad(void)
   if (TSI_ReadChk())
   {
     TSI_WriteChk(bFALSE);
-    FTM0_CnSC(0) &= ~FTM_CnSC_CHIE_MASK;
-    FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;
+    FTM0_CnSC(0) &= ~FTM_CnSC_CHIE_MASK;                 //Stop any future interrupts from occurring (stop the timer)   
+    FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;                  //Clear the Interrupt Flag       
     for (i = 0;i < 5;i++)
     {
-      FTM_StartTimer(&aFTMChannel,24414);
+      FTM_StartTimer(&aFTMChannel,24414);                // start the FTM0  
       while((FTM0_CnSC(0) & FTM_CnSC_CHF_MASK) == 0) {}
-      FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;
+      FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;                //clear the channel flag 
       if (TSI_ReadChk())
-	return;
+	    return;
     }
-    WriteMode(0);
+    WriteMode(0);                                        //set mode 0 
     FTM0_CnSC(0) |= FTM_CnSC_CHIE_MASK;
     FTM0_CnSC(0) |= FTM_CnSC_CHF_MASK;
     for (i = 0;i < 4;i++)
@@ -468,6 +477,7 @@ void CheckTouchPad(void)
 
 /*! @brief main loop for receive and handle packet.
  *
+ *  @return void
  */
 void Tower_HandlePackets(void)
 {

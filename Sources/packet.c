@@ -33,7 +33,7 @@ BOOL Packet_Init(const uint32_t baudRate, const uint32_t moduleClk)
  */
 BOOL Packet_Get(void)
 {
-  static int i = 0;                           /*!< i to make a loop*/
+  static int i = 0;           
 
   /*!a loop to get a packet*/
   switch(i)
