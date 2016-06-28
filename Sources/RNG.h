@@ -5,7 +5,7 @@
  * This module contains the functions for operating RNG.
  *
  *  @author Liang Wang
- *  @date 2016-06-28
+ *  @date 2016-06-15
  */
 
 #ifndef RNG_H
@@ -24,5 +24,5 @@ BOOL RNG_Init(void);
  *  @return RNG_OR if it is not empty.
  *  @note Assumes that RNG was successfully Set up.
  */
-uint32_t RNG_Number(void);
+uint8_t RNG_Number(void);
 #endif

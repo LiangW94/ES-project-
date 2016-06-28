@@ -7,6 +7,7 @@
  *  @author Liang Wang
  *  @date 2016-06-28
  */
+
 #ifndef TSI_H
 #define TSI_H
 
@@ -35,17 +36,18 @@ void TSI_SelfCalibration(void);
 /*! @brief read check press .
  *
  */
-BOOL readChk(void);
+BOOL TSI_ReadChk(void);
 
 /*! @brief read start.
  *
  */
-BOOL readStart(void);
+BOOL TSI_ReadStart(void);
 
 /*! @brief write check press .
  *
  */
-void writeChk(BOOL boolean);
+void TSI_WriteChk(BOOL boolean);
+
 
 /*! @brief Interrupt service routine for the TSI.
  *

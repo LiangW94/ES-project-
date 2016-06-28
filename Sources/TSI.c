@@ -7,6 +7,12 @@
  *  @author Liang Wang
  *  @date 2016-06-28
  */
+/*!
+**  @addtogroup TSI_module TSI module documentation
+**  @{
+*/
+/* MODULE TSI */
+
 #include "TSI.h"
 static uint16_t touchpad5;
 static uint16_t touchpad7;
@@ -18,55 +24,35 @@ static BOOL checkPress = bTRUE;
 
 BOOL TSI_Init(void)
 {
-  SIM_SCGC5 |= SIM_SCGC5_TSI_MASK;      //scgs5  1<<5
-  SIM_SCGC5 |= SIM_SCGC5_PORTA_MASK;
   SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
+  SIM_SCGC5 |= SIM_SCGC5_TSI_MASK;			//scgs5  1<<5
 
-  //Enable input pins
-  TSI0_PEN |= TSI_PEN_PEN5_MASK;
+  TSI0_GENCS |= TSI_GENCS_NSCN(0x09); 		// 10 times per electrode.
+  TSI0_GENCS |= TSI_GENCS_TSIIE_MASK;           //Enable interrupts initially
+  TSI0_GENCS |= TSI_GENCS_PS(0x02);		//Electrode Oscillator Frequency divided by 4
+  TSI0_GENCS |= TSI_GENCS_ESOR_MASK;            //End-of-Scan interrupt is allowed.
+  TSI0_SCANC |= TSI_SCANC_EXTCHRG(0x08);        //18 uA charge current:1000
+  TSI0_SCANC |= TSI_SCANC_REFCHRG(0x0F);        //32 uA charge current
+  TSI0_SCANC |= TSI_SCANC_SMOD(0x0A);           //choose the SMOD to Scan Period Modulus  value is 10.
+  TSI0_SCANC |= TSI_SCANC_AMPSC(0x01);          //Input Clock Source divided by 2
+  TSI0_PEN |= TSI_PEN_PEN5_MASK;                //Enable input pins
   TSI0_PEN |= TSI_PEN_PEN7_MASK;
   TSI0_PEN |= TSI_PEN_PEN8_MASK;
   TSI0_PEN |= TSI_PEN_PEN9_MASK;
 
-  //Set LP0 as clock source in active mode
-  TSI0_SCANC &= ~TSI_SCANC_AMCLKS_MASK;
-  TSI0_SCANC |= TSI_SCANC_AMCLKS(0);       //LP0 clock
-  TSI0_SCANC &= ~TSI_SCANC_AMPSC_MASK;
-  TSI0_SCANC |= TSI_SCANC_AMPSC(1);        //active mode pre-scaler = 2
-  TSI0_SCANC &= ~TSI_SCANC_REFCHRG_MASK;
-  TSI0_SCANC |= TSI_SCANC_REFCHRG(15);     //32uA reference OSC charge current
-  TSI0_SCANC &= ~TSI_SCANC_EXTCHRG_MASK;
-  TSI0_SCANC |= TSI_SCANC_EXTCHRG(8);      //18uA external OSC charge current
-  TSI0_SCANC &= ~TSI_SCANC_SMOD_MASK;
-  TSI0_SCANC |= TSI_SCANC_SMOD(10);        //10 cycle scan period modulus
-
-  TSI0_GENCS |= TSI_GENCS_TSIIE_MASK;      //Enable interrupts initially
-  TSI0_GENCS |= TSI_GENCS_ESOR_MASK;  //End of scan interrupt mode
-  TSI0_GENCS &= ~TSI_GENCS_NSCN_MASK;
-  TSI0_GENCS |= TSI_GENCS_NSCN(9);    // 10 scans per electrode
-  TSI0_GENCS &= ~TSI_GENCS_PS_MASK;
-  TSI0_GENCS |= TSI_GENCS_PS(2);      //electrode osc pre-scaler = 4
-
-  //enable TSI interrupt source in NVIC
-  NVICICPR2 |= (1 << 19);
-  NVICISER2 |= (1 << 19);
-
+  NVICICPR2 = (1 << 19);                           //enable TSI interrupt source in NVIC
+  NVICISER2 = (1 << 19);
+  TSI0_GENCS |= TSI_GENCS_TSIEN_MASK;
   return bTRUE;
 }
-
 void TSI_SelfCalibration(void)
 {
   int n;
   uint32union_t touchpad54,touchpad76,touchpad98;
-
-  TSI0_GENCS &= ~TSI_GENCS_TSIEN_MASK;  //disable TSI module
-  TSI0_GENCS &= ~TSI_GENCS_STM_MASK;    //software trigger scan mode
-  TSI0_GENCS |= TSI_GENCS_EOSF_MASK;    //clear scan complete flag
-  TSI0_GENCS |= TSI_GENCS_TSIEN_MASK;   //enable TSI module
-  TSI0_GENCS |= TSI_GENCS_SWTS_MASK;    //Write a 1 to this bit will start a scan sequence and write a 0 to this bit has no effect
-  
-  while(TSI_GENCS_EOSF_MASK ==(TSI0_GENCS & TSI_GENCS_EOSF_MASK));
-  for(n =1;n<25000; n++)
+  //Write a 1 to this bit will start a scan sequence and write a 0 to this bit has no effect
+  TSI0_GENCS |= TSI_GENCS_SWTS_MASK;
+  while (TSI_GENCS_EOSF_MASK == (TSI0_GENCS & TSI_GENCS_EOSF_MASK));
+  for (n = 1;n < 25000; n++)
   {
     __asm("nop");
   }
@@ -80,93 +66,103 @@ void TSI_SelfCalibration(void)
   touchpad8 = touchpad98.s.Lo + calibration;
   touchpad9 = touchpad98.s.Hi + calibration;
 
-  TSI0_GENCS |= TSI_GENCS_STM_MASK; //Periodical Scan
-  TSI0_GENCS |= TSI_GENCS_TSIEN_MASK;
+  TSI0_GENCS |= TSI_GENCS_STM_MASK;           //set periodic scan mode
+  TSI0_GENCS |= TSI_GENCS_TSIEN_MASK;         //enable TSI module
 }
 
-BOOL readStart(void)
+BOOL TSI_ReadStart(void)
 {
   return start;
 }
-
-BOOL readChk(void)
+BOOL TSI_ReadChk(void)
 {
   return checkPress;
 }
 
-void writeChk(BOOL boolean)
+void TSI_WriteChk(BOOL boolean)
 {
   checkPress = boolean;
 }
 
 void __attribute__ ((interrupt)) TSI_ISR(void)
 {
-  TSI0_GENCS |= TSI_GENCS_EOSF_MASK;  //Clear interrupt flag
-  if(Mode() == 1)
+  TSI0_GENCS |= TSI_GENCS_EOSF_MASK;            //Clear interrupt flag
+  if (Mode() == 1)                              //mode 1 is touch toggle
   {
-  if((TSI0_CNTR5>>16) > touchpad5)
-  {
-    if(!Debounce())
+
+   if ((TSI0_CNTR5>>16) > touchpad5)            //channel 5
+   {
+    if (!Debounce())
       return;
-    while((TSI0_CNTR5 >> 16) > touchpad5){}
-    LEDs_Toggle(LED_ORANGE);
-    checkPress =bTRUE;
-  }
-  if((TSI0_CNTR7 >> 16) > touchpad7)
+
+    while ((TSI0_CNTR5 >> 16) > touchpad5){}
+    LEDs_Toggle(LED_ORANGE);                   //toggle the led
+    checkPress = bTRUE;                        //mark the flag as bTrue
+   }
+
+  if ((TSI0_CNTR7>>16) > touchpad7)            //channel 7
   {
-    if(!Debounce())
+    if (!Debounce())
       return;
-    while((TSI0_CNTR7 >> 16) > touchpad7){}
-    checkPress = bTRUE;
-    LEDs_Toggle(LED_GREEN);
+    while ((TSI0_CNTR7 >> 16) > touchpad7){}
+    LEDs_Toggle(LED_GREEN);                   //toggle the led
+    checkPress = bTRUE;                       //mark the flag as bTrue
   }
-  if((uint16_t)(TSI0_CNTR9) > touchpad8)
+
+  if ((uint16_t)(TSI0_CNTR9) > touchpad8)     //channel 9
   {
-    if(!Debounce())
+    if (!Debounce())
       return;
-    while((uint16_t)(TSI0_CNTR9) > touchpad8){}
-    checkPress = bTRUE;
-    LEDs_Toggle(LED_YELLOW);
+    while ((uint16_t)(TSI0_CNTR9) > touchpad8){}
+    LEDs_Toggle(LED_YELLOW);                 //toggle the led
+    checkPress = bTRUE;                      //mark the flag as bTrue
   }
-  if((TSI0_CNTR9 >> 16) >touchpad9)
+
+  if ((TSI0_CNTR9 >> 16) > touchpad9)
   {
-    if(!Debounce())
+    if (!Debounce())
       return;
-    while((TSI0_CNTR9 >> 16) > touchpad9){}
-    checkPress = bTRUE;
-    LEDs_Toggle(LED_BLUE);
+    while ((TSI0_CNTR9 >> 16) > touchpad9){}
+    LEDs_Toggle(LED_BLUE);                  //toggle the led
+    checkPress = bTRUE;                     //mark the flag as bTrue
   }
-  }
-  if(Mode()==2)
+ }
+
+  if (Mode() == 2)                          //mode 2 is game
   {
-    if((TSI0_CNTR5 >> 16) > touchpad5)
+    if ((TSI0_CNTR5 >> 16) > touchpad5)
     {
-      if(!Debounce())
+      if (!Debounce())
         return;
       while((TSI0_CNTR5 >> 16) > touchpad5){}
       start = bTRUE;
     }
-    if((TSI0_CNTR7 >> 16) > touchpad7)
+    if ((TSI0_CNTR7 >> 16) > touchpad7)
     {
-      if(!Debounce())
+      if (!Debounce())
         return;
-      while((TSI0_CNTR7 >> 16) > touchpad7){}
+      while ((TSI0_CNTR7 >> 16) > touchpad7){}
       start = bTRUE;
     }
-    if((uint16_t)(TSI0_CNTR9) > touchpad8)
+    if ((uint16_t)(TSI0_CNTR9) > touchpad8)
     {
-      if(!Debounce())
+      if (!Debounce())
         return;
       while((uint16_t)(TSI0_CNTR9) > touchpad8){}
       start = bTRUE;
     }
-    if((TSI0_CNTR9 >> 16) > touchpad9)
+    if ((TSI0_CNTR9 >> 16) > touchpad9)
     {
-      if(!Debounce())
+      if (!Debounce())
         return;
-      while((TSI0_CNTR9 >> 16) > touchpad9){}
+      while ((TSI0_CNTR9 >> 16) > touchpad9){}
       start = bTRUE;
     }
 
   }
 }
+
+/* END TSI */
+/*!
+** @}
+*/
