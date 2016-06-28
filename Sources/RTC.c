@@ -7,7 +7,6 @@
  *  @author Liang Wang
  *  @date 2016-06-28
  */
-
 /*!
 **  @addtogroup RTC_module RTC module documentation
 **  @{

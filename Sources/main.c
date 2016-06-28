@@ -28,6 +28,7 @@
 
 // CPU module - contains low level hardware initialization routines
 #include "Cpu.h"
+#include "Events.h"
 #include "PE_Types.h"
 #include "PE_Error.h"
 #include "PE_Const.h"
@@ -44,38 +45,38 @@
 #include "TSI.h"
 #include "RNG.h"
 #include "SW.h"
-#define BAUDRATE 115200                               // baud rate a value 115200
-#define TOWER_STARTUP_CMD 0x04                        //0x04 is TOWER_STARTUP_CMD
-#define TOWER_GETVERSION_CMD 0x09                     //0x09 is TOWER_GETVERSION_CMD
-#define TOWER_NUMBER_CMD 0x0B                         //0x0B is TOWER_NUMBER_CMD
-#define TOWER_PROGRAMBYTE_CMD 0x07                    //0x07 is TOWER_PROGRAMBYTE_CMD
-#define TOWER_READBYTE_CMD 0x08                       //0x08 is TOWER_READBYTE_CMD
+#define BAUDRATE 115200                               /*!< baud rate a value 115200*/
+#define TOWER_STARTUP_CMD 0x04                        /*!<0x04 is TOWER_STARTUP_CMD*/
+#define TOWER_GETVERSION_CMD 0x09                     /*!<0x09 is TOWER_GETVERSION_CMD*/
+#define TOWER_NUMBER_CMD 0x0B                         /*!<0x0B is TOWER_NUMBER_CMD*/
+#define TOWER_PROGRAMBYTE_CMD 0x07                    /*!<0x07 is TOWER_PROGRAMBYTE_CMD*/
+#define TOWER_READBYTE_CMD 0x08                       /*!<0x08 is TOWER_READBYTE_CMD*/
 #define TOWER_ACCELMODE_CMD 0x0A
-#define TOWER_TOWERMODE_CMD 0x0D                      //0x0D is TOWER_TOWERMODE_CMD
-#define TOWER_TIME_CMD 0x0C                           //0x0C is TOWER_TIME_CMD
+#define TOWER_TOWERMODE_CMD 0x0D                      /*!<0x0D is TOWER_TOWERMODE_CMD*/
+#define TOWER_TIME_CMD 0x0C                           /*!<0x0C is TOWER_TIME_CMD*/
 #define TOWER_ACCEL_CMD 0x10
 #define TOWER_GAME_CMD 0x0E
-#define CR 0x0d                                       //0x0d is CR
-#define MAJOR_VERSION_NUMBER 0x01                     //0x01 is MAJOR_VERSION_NUMBER
-#define MINOR_VERSION_NUMBER 0x00                     //0x00 is MINOR_VERSION_NUMBER
-#define GET_TOWER_NUMBER 0x01                         //0x01 is  GET_TOWER_NUMBER
-#define SET_TOWER_NUMBER 0x02                         //0x02 is SET_TOWER_NUMBER
-#define ACK_MASK 0x80                                 //0x80 is ACK_MASK
-#define FIRST_ADDRESS 0x80000                         //0x80000 is  FIRST_ADDRESS
-#define STUDENT_NUMBER 6928                           //6928 is STUDENT_NUMBER
-#define UNPROGRAMED_NUMBER 0xFFFF                     //0xFFFF is UNPROGRAMED_NUMBER
-#define TOWER_INIT_MODE 0x01                          //0x01 is TOWER_INIT_MODE
-#define PERIOD 500000000                              //5000000000 is PERIOD
+#define CR 0x0d                                       /*!<0x0d is CR*/
+#define MAJOR_VERSION_NUMBER 0x01                     /*!<0x01 is MAJOR_VERSION_NUMBER*/
+#define MINOR_VERSION_NUMBER 0x00                     /*!<0x00 is MINOR_VERSION_NUMBER*/
+#define GET_TOWER_NUMBER 0x01                         /*!<0x01 is  GET_TOWER_NUMBER*/
+#define SET_TOWER_NUMBER 0x02                         /*!<0x02 is SET_TOWER_NUMBER*/
+#define ACK_MASK 0x80                                 /*!<0x80 is ACK_MASK*/
+#define FIRST_ADDRESS 0x80000                         /*!<0x80000 is  FIRST_ADDRESS*/
+#define STUDENT_NUMBER 6928                           /*!<6928 is STUDENT_NUMBER*/
+#define UNPROGRAMED_NUMBER 0xFFFF                     /*!<0xFFFF is UNPROGRAMED_NUMBER*/
+#define TOWER_INIT_MODE 0x01                          /*!<0x01 is TOWER_INIT_MODE*/
+#define PERIOD 500000000                              /*!<5000000000 is PERIOD*/
 
-static uint16_t *towerNb;                             // pointer to tower number. 
+static uint16_t *towerNb;                             /*!< pointer to tower number. */
 
-static uint16_t *towerMd;                             // pointer to tower towermode. 
+static uint16_t *towerMd;                             /*!< pointer to tower towermode. */
 
-static uint8_t h,m,s;                                 // hours and seconds 
+static uint8_t h,m,s;                                 /*!< hours and seconds */
 static uint8_t score;
 
-static uint8_t accMode =0;                            // signal mode select 
-static TFTMChannel aFTMChannel;		                    // pre seting aFTMChannel 
+static uint8_t accMode = 0;                            /*!< signal mode select */
+static TFTMChannel aFTMChannel;		              /*!< pre seting aFTMChannel */
 
 TPacket Packet;
 
@@ -89,19 +90,15 @@ void Poll_Read(void)
   int i;
   static uint8_t data[3];//,datap[3];
   Accel_ReadXYZ(data);
-  //if(data[0]!=datap[0] |data[1]!=datap[1]|data[2]!=datap[2])
     Packet_Put(TOWER_ACCEL_CMD, data[0], data[1], data[2]);
-  /*for(i=0;i<3;i++)
-  {
-    datap[i]= data[i];
-  }*/
+
 }
 /*! @brief callback function to toggle green led.
  *
  */
 void PIT_Callback()
 {
-  if(Mode()==0)
+  if (Mode() == 0)
     LEDs_Toggle(LED_GREEN);
 }
 
@@ -110,7 +107,7 @@ void PIT_Callback()
  */
 void FTM0_Callback()
 {
-  if(Mode()==0)
+  if (Mode() == 0)
     LEDs_Off(LED_BLUE);
 }
 
@@ -122,32 +119,31 @@ void FTM0_Callback()
 void RTC_Callback()
 {
   RTC_Get(&h, &m, &s);
-  if(Mode()==0)
+  if (Mode() == 0)
     LEDs_Toggle(LED_YELLOW);
+
   Packet_Put(TOWER_TIME_CMD, h, m,s);
-  //if(accMode == 0)
-  //  Poll_Read();
 }
 
 void I2C_Callback()
 {
-  static int i=0;
+  static int i = 0;
   uint8_t x,y,z;
-  static uint8_t temp1[3]={0,0,0},temp2[3]={0,0,0},temp3[3]={0,0,0};
+  static uint8_t temp1[3] = {0,0,0},temp2[3] = {0,0,0},temp3[3] = {0,0,0};
 
   temp1[i] = data[i];
   i++;
   x = Median_Filter3(temp1[0], temp2[0], temp3[0]);
   y = Median_Filter3(temp1[1], temp2[1], temp3[1]);
   z = Median_Filter3(temp1[2], temp2[2], temp3[2]);
-  if(i==3)
+  if(i == 3)
   {
-    for(int l=0;l<3;l++)                                                            ///////////////////////////i>>l
+    for(int l = 0;l < 3;l++)
     {
-      temp3[l]= temp2[l];
-      temp2[l]= temp1[l];
+      temp3[l] = temp2[l];
+      temp2[l] = temp1[l];
     }
-    i=0;
+    i = 0;
   }
   Packet_Put(TOWER_ACCEL_CMD,x,y,z);
 }
@@ -194,12 +190,14 @@ BOOL Tower_Init(void)
   uint16union_t towerMode;          /*! a 16 bit towerMode */
   towerNumber.l = *towerNb;
   /*!initialize  the tower number*/
-  if(towerNumber.l == UNPROGRAMED_NUMBER)
+  if (towerNumber.l == UNPROGRAMED_NUMBER)
     towerNumber.l = STUDENT_NUMBER;
+
   towerMode.l = *towerMd;
   /*!initialize the tower mode*/
-  if(towerMode.l == UNPROGRAMED_NUMBER)
+  if (towerMode.l == UNPROGRAMED_NUMBER)
     towerMode.l = TOWER_INIT_MODE;
+
   FTM_Set(&aFTMChannel);
   TSI_SelfCalibration();
   /*!get four packets*/
@@ -252,7 +250,7 @@ BOOL Handle_GetNumber_Packet(void)
     uint16union_t towerNumber;
     towerNumber.l = *towerNb;
     /*!if we have not set the number, get the initial tower number, which is our student number*/
-    if(towerNumber.l == UNPROGRAMED_NUMBER)
+    if (towerNumber.l == UNPROGRAMED_NUMBER)
       towerNumber.l = STUDENT_NUMBER;
     /*!PC receive the tower number packet*/
     return Packet_Put(TOWER_NUMBER_CMD, GET_TOWER_NUMBER, towerNumber.s.Lo, towerNumber.s.Hi);
@@ -277,10 +275,10 @@ BOOL Handle_ProgramByte_Packet(void)
   if (Packet_Parameter2 == 0)
   {
     /*!when address offset is 0x08, it do erase the flash sector*/
-    if(Packet_Parameter1 == 8)
+    if (Packet_Parameter1 == 8)
       return Flash_Erase();
     /*!when address offset is less than 0x08, it can write*/
-    if(Packet_Parameter1 <8)
+    if (Packet_Parameter1 < 8)
     {
       /*!find address by the address offset, and write data in parameter 3 in flash*/
       uint32_t address = Packet_Parameter1;
@@ -338,9 +336,9 @@ BOOL Handle_TowerMode_Packet(void)
  */
 BOOL Handle_TowerTime_Packet(void)
 {
-  if (Packet_Parameter1 >=0 && Packet_Parameter1 <=23 && Packet_Parameter2 >=0 && Packet_Parameter2 <=59 && Packet_Parameter3 >= 0 &&Packet_Parameter3 <=59)
+  if (Packet_Parameter1 >= 0 && Packet_Parameter1 <= 23 && Packet_Parameter2 >= 0 && Packet_Parameter2 <= 59 && Packet_Parameter3 >= 0 &&Packet_Parameter3 <= 59)
   {
-    RTC_IER &=~RTC_IER_TSIE_MASK;    /*!Seconds interrupt disable*/
+    RTC_IER &= ~RTC_IER_TSIE_MASK;    /*!Seconds interrupt disable*/
     RTC_Set(Packet_Parameter1,Packet_Parameter2,Packet_Parameter3);
     RTC_IER |= RTC_IER_TSIE_MASK;    /*!Seconds interrupt enable*/
     return Packet_Put(TOWER_TIME_CMD, Packet_Parameter1, Packet_Parameter2,Packet_Parameter3);
@@ -351,15 +349,15 @@ BOOL Handle_AccelMode_Packet(void)
   if (Packet_Parameter1 == 1 && Packet_Parameter2 == 0 && Packet_Parameter3 == 0)
     return Packet_Put(TOWER_ACCELMODE_CMD, Packet_Parameter1, accMode,Packet_Parameter3);
 
-  if(Packet_Parameter1 = 2 && Packet_Parameter3 == 0)
+  if (Packet_Parameter1 = 2 && Packet_Parameter3 == 0)
   {
-    if(Packet_Parameter2 == 0)
+    if (Packet_Parameter2 == 0)
     {
       accMode == 0;
       Accel_SetMode(ACCEL_POLL);
       return bTRUE;
     }
-    if(Packet_Parameter2 == 1)
+    if (Packet_Parameter2 == 1)
     {
       accMode == 1;
       Accel_SetMode(ACCEL_INT);
@@ -376,48 +374,21 @@ BOOL Handle_Game_Packet(void)
   }
 }
 
-/*! @brief check touch pad.
- *
- */
-void checkP(void)
-{
-  TLED color[4] = {LED_BLUE, LED_GREEN, LED_YELLOW, LED_ORANGE};
-  int i;
-  if(readChk())
-  {
-    writeChk(bFALSE);
-    FTM0_CnSC(0)&= ~FTM_CnSC_CHIE_MASK;
-    FTM0_CnSC(0)&= ~FTM_CnSC_CHF_MASK;
-    for(i=0;i<5;i++)
-    {
-      FTM_StartTimer(&aFTMChannel,24414);
-      while((FTM0_CnSC(0)& FTM_CnSC_CHF_MASK)==0) {}
-      FTM0_CnSC(0)&= ~FTM_CnSC_CHF_MASK;
-      if(readChk())
-	return;
-    }
-    WriteMode(0);
-    FTM0_CnSC(0)|= FTM_CnSC_CHIE_MASK;
-    FTM0_CnSC(0)|= FTM_CnSC_CHF_MASK;
-    for(i=0;i<4;i++)
-      LEDs_Off(color[i]);
-    LEDs_On(color[3]);
-  }
-}
 /*! @brief Sets up TSI game .
  *
  */
-void TSI_Game(void)
+void Game(void)
 {
   TLED color[4] = {LED_BLUE, LED_GREEN, LED_YELLOW, LED_ORANGE};
   int sequence[32];
   int currentColor,i,n,s,j,k;
   BOOL keepgoing;
-  FTM0_CnSC(0)&= ~FTM_CnSC_CHIE_MASK;
-  FTM0_CnSC(0)&= ~FTM_CnSC_CHF_MASK;
-  for(i=0;i<4;i++)
+  FTM0_CnSC(0) &= ~FTM_CnSC_CHIE_MASK;
+  FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;
+  for (i = 0;i < 4;i++)
     LEDs_Off(color[i]);
-  for(;;)
+
+  for (;;)
   {
    /* if(readStart()&&!keepgoing)
     {
@@ -440,9 +411,9 @@ void TSI_Game(void)
     }
     */
     keepgoing =bFALSE;
-    currentColor=(RNG_Number()%4);
-    LEDs_On(color[currentColor]);
-    FTM_StartTimer(&aFTMChannel,24414);
+    currentColor = (RNG_Number() % 4);            //generate random for color
+    LEDs_On(color[currentColor]);                 //turn on led
+    FTM_StartTimer(&aFTMChannel,24414);           //flash for 1 second
     while((FTM0_CnSC(0)& FTM_CnSC_CHF_MASK)==0) {}
     FTM0_CnSC(0)&= ~FTM_CnSC_CHF_MASK;
     LEDs_Off(color[currentColor]);
@@ -450,18 +421,48 @@ void TSI_Game(void)
    // {
    //   __asm("nop");
    // }
-    if(readStart())
+    if (TSI_ReadStart())
     {
       sequence[s] = currentColor;
       s++;
-      keepgoing =bTRUE;
+      keepgoing = bTRUE;
     }
-    if(Mode()!=2)
+    if(Mode()!= 2)
     {
-      FTM0_CnSC(0)|= FTM_CnSC_CHIE_MASK;
-      FTM0_CnSC(0)|= FTM_CnSC_CHF_MASK;
+      FTM0_CnSC(0) |= FTM_CnSC_CHIE_MASK;
+      FTM0_CnSC(0) |= FTM_CnSC_CHF_MASK;
       return;
     }
+  }
+}
+
+
+/*! @brief check touch pad.
+ *
+ */
+void CheckTouchPad(void)
+{
+  TLED color[4] = {LED_BLUE, LED_GREEN, LED_YELLOW, LED_ORANGE};
+  int i;
+  if (TSI_ReadChk())
+  {
+    TSI_WriteChk(bFALSE);
+    FTM0_CnSC(0) &= ~FTM_CnSC_CHIE_MASK;
+    FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;
+    for (i = 0;i < 5;i++)
+    {
+      FTM_StartTimer(&aFTMChannel,24414);
+      while((FTM0_CnSC(0) & FTM_CnSC_CHF_MASK) == 0) {}
+      FTM0_CnSC(0) &= ~FTM_CnSC_CHF_MASK;
+      if (TSI_ReadChk())
+	return;
+    }
+    WriteMode(0);
+    FTM0_CnSC(0) |= FTM_CnSC_CHIE_MASK;
+    FTM0_CnSC(0) |= FTM_CnSC_CHF_MASK;
+    for (i = 0;i < 4;i++)
+      LEDs_Off(color[i]);
+    LEDs_On(color[3]);
   }
 }
 
@@ -477,7 +478,7 @@ void Tower_HandlePackets(void)
 
   if (Packet_Get())
   {
-    if(Mode()==0)
+    if (Mode() == 0)
       LEDs_On(LED_BLUE);
     //aFTMChannel.initialCount = 0; 		/*!assign the tiemr initial value.*/
     FTM_StartTimer(&aFTMChannel,24414);
@@ -492,32 +493,32 @@ void Tower_HandlePackets(void)
       Carried_Out = Handle_Startup_Packet();
       break;
     /*!when choose Get version*/
-    case(TOWER_GETVERSION_CMD):
+    case (TOWER_GETVERSION_CMD):
       Carried_Out = Handle_GetVersion_Packet();
       break;
     /*!when choose tower number*/
-    case(TOWER_NUMBER_CMD):
+    case (TOWER_NUMBER_CMD):
       Carried_Out = Handle_GetNumber_Packet();
       break;
       /*!when choose write data into flash*/
-    case(TOWER_PROGRAMBYTE_CMD):
+    case (TOWER_PROGRAMBYTE_CMD):
       Carried_Out = Handle_ProgramByte_Packet();
       break;
       /*!when choose read data from flash*/
-    case(TOWER_READBYTE_CMD):
+    case (TOWER_READBYTE_CMD):
       Carried_Out = Handle_ReadByte_Packet();
       break;
       /*!when choose get tower mode*/
-    case(TOWER_TOWERMODE_CMD):
+    case (TOWER_TOWERMODE_CMD):
       Carried_Out = Handle_TowerMode_Packet();
       break;
-    case(TOWER_TIME_CMD):
+    case (TOWER_TIME_CMD):
       Carried_Out = Handle_TowerTime_Packet();
       break;
-    case(TOWER_ACCELMODE_CMD):
+    case (TOWER_ACCELMODE_CMD):
       Carried_Out = Handle_AccelMode_Packet();
       break;
-    case(TOWER_GAME_CMD):
+    case (TOWER_GAME_CMD):
       Carried_Out = Handle_Game_Packet();
       break;
     default:
@@ -552,10 +553,13 @@ int main(void)
   /*** End of Processor Expert internal initialization.                    ***/
   EnterCritical();
   Tower_Setup();
-  if(Tower_Setup()&&(Mode()==0))
+
+  if (Tower_Setup() && (Mode() == 0))    //if successful initial in default mode
     LEDs_On(LED_ORANGE);
+
   PIT_Set(PERIOD ,1);
   PIT_Enable(1);
+
   /*Allocate the address for tower number.*/
   Flash_AllocateVar((volatile void **)&towerNb, sizeof(*towerNb));
   /*Allocate the address for tower mode.*/
@@ -565,10 +569,12 @@ int main(void)
   /* Write your code here */
   for (;;)
   {
-    if(Mode()==1)
-      checkP();
-    if(Mode()==2)
-      TSI_Game();
+    if (Mode() == 1)
+      CheckTouchPad();  //mode 1 touch toggle
+
+    if (Mode() == 2)    //mode 2 game
+      Game();
+
     Tower_HandlePackets();
   }
 

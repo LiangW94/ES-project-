@@ -5,25 +5,36 @@
  * This module contains the functions for operating RNG.
  *
  *  @author Liang Wang
- *  @date 2016-06-28
+ *  @date 2016-06-15
  */
-
+/*!
+**  @addtogroup RNG_module RNG Module Documentation
+**  @{
+*/
+/* MODULE RNG */
+#include "MK70F12.h"
 #include "RNG.h"
 
-BOOL RNG_Init(void)
+BOOL RNG_Init()
 {
-  SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK;
-  RNG_CR &= ~RNG_CR_SLP_MASK; 		     /* set SLP bit to 0 - "RNGA is in normal mode" */
-  RNG_CR |= RNG_CR_INTM_MASK;               //Interrupt Mask,Masks the triggering of an error interrupt
-  RNG_CR |= RNG_CR_HA_MASK;		    /* set HA bit to 1 - "Enables notification of security violations" */
-  RNG_CR |= RNG_CR_GO_MASK;    		    /* set GO bit to 1 - "output register loaded with data" */
-  RNG_ER =0;
-  return bTRUE;
+  SIM_SCGC3 |= SIM_SCGC3_RNGA_MASK; //enable RNGA Module Clock
+
+  RNG_CR |= RNG_CR_INTM_MASK;       //interrupts mask
+  RNG_CR |= RNG_CR_GO_MASK;         //RNG enabled
+  RNG_CR |= RNG_CR_HA_MASK;         //High Accuracy mode enabled
+  RNG_CR |= RNG_CR_SLP_MASK;        //Sleep Mode Enabled
+
+  return (bTRUE);
 }
 
-uint32_t RNG_Number(void)
+uint8_t RNG_Number()
 {
-  while(RNG_SR & RNG_SR_OREG_LVL_MASK == 0) /*IF EMMPTY*/
-  {}
-  return RNG_OR;
+  RNG_CR &= ~RNG_CR_SLP_MASK;                 //disable sleep mode
+  while (!(RNG_SR & RNG_SR_OREG_LVL_MASK)){}  //wait for random number ready
+  RNG_CR |= RNG_CR_SLP_MASK;                  //enable sleep mode
+  return RNG_OR;                              //returns the RNG_OR
 }
+/* END RNG */
+/*!
+** @}
+*/

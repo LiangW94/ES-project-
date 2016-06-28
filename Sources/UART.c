@@ -12,6 +12,7 @@
 **  @{
 */
 /* MODULE UART */
+
 // new types
 #include "UART.h"
 
@@ -106,6 +107,7 @@ void __attribute__ ((interrupt)) UART_ISR(void)
     UART2_C2 &= ~UART_C2_TIE_MASK;                        /*disable transmitter interrupt*/
   }
 }
+
 /* END UART */
 /*!
 ** @}

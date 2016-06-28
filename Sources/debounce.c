@@ -16,8 +16,8 @@
 
 BOOL Debounce(void)
 {
-  static uint16_t counter =0;
-  if (counter == 10)
+  static int counter =0;
+  if (counter == 50)
   {
     counter = 0;
     return bFALSE;
@@ -26,8 +26,6 @@ BOOL Debounce(void)
     counter ++;
   return bTRUE;
 }
-
-
 
 /* END debounce */
 /*!

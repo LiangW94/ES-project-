@@ -13,7 +13,7 @@
 
 // new types
 #include "types.h"
-
+#include "MK70F12.h"
 /*! @brief LED to pin mapping on the TWR-K70F120M
  *
  */

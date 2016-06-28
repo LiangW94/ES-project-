@@ -40,7 +40,7 @@ static union
   struct
   {
     uint8_t SRC_DRDY   : 1;	/*!< Data ready interrupt status. */
-    uint8_t               : 1;
+    uint8_t            : 1;
     uint8_t SRC_FF_MT  : 1;	/*!< Freefall/motion interrupt status. */
     uint8_t SRC_PULSE  : 1;	/*!< Pulse detection interrupt status. */
     uint8_t SRC_LNDPRT : 1;	/*!< Orientation interrupt status. */
@@ -193,7 +193,7 @@ void Accel_SetMode(const TAccelMode mode)
 {
   if (mode == ACCEL_POLL)
   {
-      I2C0_C1 &= ~I2C_C1_IICIE_MASK;                    ///////////////////////
+    I2C0_C1 &= ~I2C_C1_IICIE_MASK;                    ///////////////////////
     PORTB_PCR4 |= PORT_PCR_IRQC(9) ;
     I2C_Write(ADDRESS_CTRL_REG1, 0x03);          //////////////////////
     I2C_Write(ADDRESS_CTRL_REG4, 0x00);
