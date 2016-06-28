@@ -41,26 +41,24 @@ void LEDs_On(const TLED color)
   {
     /*!turn on orange led*/
     case LED_ORANGE:
-      //GPIOA_PDDR |=1<<11;
-      GPIOA_PCOR |=1<<11;
+      GPIOA_PCOR |= 1 << 11;
       break;
+
       /*!turn on yellow led*/
     case LED_YELLOW:
-     // GPIOA_PDDR |=1<<28;
-      GPIOA_PCOR |=1<<28;
+      GPIOA_PCOR |= 1 << 28;
       break;
+
       /*!turn on green led*/
     case LED_GREEN:
-
-     // GPIOA_PDDR |=1<<29;
-      GPIOA_PCOR |=1<<29;
+      GPIOA_PCOR |= 1 << 29;
       break;
+
       /*!turn on blue led*/
     case LED_BLUE:
-
-     // GPIOA_PDDR |=1<<10;
-      GPIOA_PCOR |=1<<10;
+      GPIOA_PCOR |= 1 << 10;
       break;
+
     default:
       break;
   }
@@ -72,28 +70,24 @@ void LEDs_Off(const TLED color)
   {
   /*!turn off orange led*/
     case LED_ORANGE:
-
-      //GPIOA_PDDR |=1<<11;
       GPIOA_PSOR |=1<<11;
       break;
+
       /*!turn off yellow led*/
     case LED_YELLOW:
-
-     // GPIOA_PDDR |=1<<28;
       GPIOA_PSOR |=1<<28;
       break;
+
       /*!turn off green led*/
     case LED_GREEN:
-
-      //GPIOA_PDDR |=1<<29;
       GPIOA_PSOR |=1<<29;
       break;
+
   /*!turn off blue led*/
     case LED_BLUE:
-
-     // GPIOA_PDDR |=1<<10;
       GPIOA_PSOR |=1<<10;
       break;
+
     default:
       break;
   }
@@ -107,28 +101,24 @@ void LEDs_Toggle(const TLED color)
   {
   /*!toggle orange led*/
     case LED_ORANGE:
-
-      //GPIOA_PDDR |=1<<11;
       GPIOA_PTOR |=1<<11;
       break;
+
   /*!toggle yelow led*/
     case LED_YELLOW:
-
-      //GPIOA_PDDR |=1<<28;
       GPIOA_PTOR |=1<<28;
       break;
+
    /*!toggle green led*/
     case LED_GREEN:
-
-      //GPIOA_PDDR |=1<<29;
       GPIOA_PTOR |=1<<29;
       break;
+
    /*!toggle blue led*/
     case LED_BLUE:
-
-      //GPIOA_PDDR |=1<<10;
       GPIOA_PTOR |=1<<10;
       break;
+      
     default:
       break;
   }

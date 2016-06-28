@@ -28,23 +28,25 @@ BOOL TSI_Init(void);
 
 /*! @brief Sets up TSI SelfCalibration.
  *
+ *  @return void
  */
 void TSI_SelfCalibration(void);
-//void TSI_Start(void);
-
 
 /*! @brief read check press .
  *
+ *  @return BOOL
  */
 BOOL TSI_ReadChk(void);
 
 /*! @brief read start.
  *
+ *  @return BOOL
  */
 BOOL TSI_ReadStart(void);
 
 /*! @brief write check press .
  *
+ *  @return void
  */
 void TSI_WriteChk(BOOL boolean);
 

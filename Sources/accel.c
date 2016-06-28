@@ -1,6 +1,6 @@
 /*! @file
  *
- *  @brief Accel module.
+ *  @brief Interface to the K70 Accelerometer.
  *
  *  This module contains the structure and "methods" for accelerator.
  *
@@ -13,19 +13,10 @@
 */
 /* MODULE ACCEL */
 
-// Accelerometer functions
 #include "accel.h"
-
-// Inter-Integrated Circuit
 #include "I2C.h"
-
-// Median filter
 #include "median.h"
-
-// K70 module registers
 #include "MK70F12.h"
-
-// CPU and PE_types are needed for critical section variables and the defintion of NULL pointer
 #include "CPU.h"
 #include "PE_types.h"
 
@@ -36,7 +27,7 @@
 
 static union
 {
-  uint8_t byte;			/*!< The INT_SOURCE bits accessed as a byte. */
+  uint8_t byte;			        /*!< The INT_SOURCE bits accessed as a byte. */
   struct
   {
     uint8_t SRC_DRDY   : 1;	/*!< Data ready interrupt status. */
@@ -47,7 +38,7 @@ static union
     uint8_t SRC_TRANS  : 1;	/*!< Transient interrupt status. */
     uint8_t SRC_FIFO   : 1;	/*!< FIFO interrupt status. */
     uint8_t SRC_ASLP   : 1;	/*!< Auto-SLEEP/WAKE interrupt status. */
-  } bits;			/*!< The INT_SOURCE bits accessed individually. */
+  } bits;			              /*!< The INT_SOURCE bits accessed individually. */
 } INT_SOURCE_Union;
 
 #define INT_SOURCE     		INT_SOURCE_Union.byte
@@ -83,7 +74,7 @@ typedef enum
 
 static union
 {
-  uint8_t byte;			/*!< The CTRL_REG1 bits accessed as a byte. */
+  uint8_t byte;			        /*!< The CTRL_REG1 bits accessed as a byte. */
   struct
   {
     uint8_t ACTIVE    : 1;	/*!< Mode selection. */
@@ -91,7 +82,7 @@ static union
     uint8_t LNOISE    : 1;	/*!< Reduced noise mode. */
     uint8_t DR        : 3;	/*!< Data rate selection. */
     uint8_t ASLP_RATE : 2;	/*!< Auto-WAKE sample frequency. */
-  } bits;			/*!< The CTRL_REG1 bits accessed individually. */
+  } bits;			              /*!< The CTRL_REG1 bits accessed individually. */
 } CTRL_REG1_Union;
 
 #define CTRL_REG1     		    CTRL_REG1_Union.byte
@@ -107,7 +98,7 @@ static union
 
 static union
 {
-  uint8_t byte;			/*!< The CTRL_REG3 bits accessed as a byte. */
+  uint8_t byte;			          /*!< The CTRL_REG3 bits accessed as a byte. */
   struct
   {
     uint8_t PP_OD       : 1;	/*!< Push-pull/open drain selection. */
@@ -117,7 +108,7 @@ static union
     uint8_t WAKE_LNDPRT : 1;	/*!< Orientation function in SLEEP mode. */
     uint8_t WAKE_TRANS  : 1;	/*!< Transient function in SLEEP mode. */
     uint8_t FIFO_GATE   : 1;	/*!< FIFO gate bypass. */
-  } bits;			/*!< The CTRL_REG3 bits accessed individually. */
+  } bits;			                /*!< The CTRL_REG3 bits accessed individually. */
 } CTRL_REG3_Union;
 
 #define CTRL_REG3     		    CTRL_REG3_Union.byte
@@ -133,7 +124,7 @@ static union
 
 static union
 {
-  uint8_t byte;			/*!< The CTRL_REG4 bits accessed as a byte. */
+  uint8_t byte;			            /*!< The CTRL_REG4 bits accessed as a byte. */
   struct
   {
     uint8_t INT_EN_DRDY   : 1;	/*!< Data ready interrupt enable. */
@@ -144,7 +135,7 @@ static union
     uint8_t INT_EN_TRANS  : 1;	/*!< Transient interrupt enable. */
     uint8_t INT_EN_FIFO   : 1;	/*!< FIFO interrupt enable. */
     uint8_t INT_EN_ASLP   : 1;	/*!< Auto-SLEEP/WAKE interrupt enable. */
-  } bits;			/*!< The CTRL_REG4 bits accessed individually. */
+  } bits;		                   	/*!< The CTRL_REG4 bits accessed individually. */
 } CTRL_REG4_Union;
 
 #define CTRL_REG4            		CTRL_REG4_Union.byte
@@ -160,7 +151,7 @@ static union
 
 static union
 {
-  uint8_t byte;			/*!< The CTRL_REG5 bits accessed as a byte. */
+  uint8_t byte;			            /*!< The CTRL_REG5 bits accessed as a byte. */
   struct
   {
     uint8_t INT_CFG_DRDY   : 1;	/*!< Data ready interrupt enable. */
@@ -171,7 +162,7 @@ static union
     uint8_t INT_CFG_TRANS  : 1;	/*!< Transient interrupt enable. */
     uint8_t INT_CFG_FIFO   : 1;	/*!< FIFO interrupt enable. */
     uint8_t INT_CFG_ASLP   : 1;	/*!< Auto-SLEEP/WAKE interrupt enable. */
-  } bits;			/*!< The CTRL_REG5 bits accessed individually. */
+  } bits;			                  /*!< The CTRL_REG5 bits accessed individually. */
 } CTRL_REG5_Union;
 
 #define CTRL_REG5     		      	CTRL_REG5_Union.byte
@@ -193,25 +184,25 @@ void Accel_SetMode(const TAccelMode mode)
 {
   if (mode == ACCEL_POLL)
   {
-    I2C0_C1 &= ~I2C_C1_IICIE_MASK;                    ///////////////////////
+    I2C0_C1 &= ~I2C_C1_IICIE_MASK;                  
     PORTB_PCR4 |= PORT_PCR_IRQC(9) ;
-    I2C_Write(ADDRESS_CTRL_REG1, 0x03);          //////////////////////
+    I2C_Write(ADDRESS_CTRL_REG1, 0x03);          
     I2C_Write(ADDRESS_CTRL_REG4, 0x00);
     NVICICPR2 |= (0<<24);
     NVICISER2 |= (0<<24);
-    NVICICPR0 = (1<<24);                              ////////////////////
-    NVICISER0 = (1<<24);                                 ///////////////////////
+    NVICICPR0 = (1<<24);                              
+    NVICISER0 = (1<<24);                                 
   }
   if(mode ==ACCEL_INT)
   {
-    I2C0_C1 |= I2C_C1_IICIE_MASK;                    ///////////////////////
+    I2C0_C1 |= I2C_C1_IICIE_MASK;                   
     PORTB_PCR4|=PORT_PCR_IRQC(9) ;
-    I2C_Write(ADDRESS_CTRL_REG1, 0x3B);          //////////////////////
+    I2C_Write(ADDRESS_CTRL_REG1, 0x3B);         
     I2C_Write(ADDRESS_CTRL_REG4, 0x01);
     NVICICPR2 = (1<<24);
     NVICISER2 = (1<<24);
-    NVICICPR0 = (1<<24);                              ////////////////////
-    NVICISER0 = (1<<24);                                 ///////////////////////
+    NVICICPR0 = (1<<24);                            
+    NVICISER0 = (1<<24);                             
 
   }
 
@@ -226,14 +217,11 @@ BOOL Accel_Init(const TAccelSetup* const accelSetup)
 {
   SIM_SCGC5  |= SIM_SCGC5_PORTB_MASK;
   PORTB_PCR4 |= PORT_PCR_MUX(1)  ;
-  //I2C_Write(ADDRESS_CTRL_REG2, 0x40);
-  //I2C_Write(ADDRESS_CTRL_REG1, 0x03);
-  //I2C_Write(ADDRESS_CTRL_REG3, 0x02);
-  //I2C_Write(ADDRESS_CTRL_REG5, 0x01);
-  I2C_Write(ADDRESS_CTRL_REG1, 0x03);          /////////////////
-  I2C_Write(ADDRESS_CTRL_REG3, 0x02);          ////////////////
-  I2C_Write(ADDRESS_CTRL_REG4, 0x00);          //////////////////
-  I2C_Write(ADDRESS_CTRL_REG5, 0x01);          /////////////////
+
+  I2C_Write(ADDRESS_CTRL_REG1, 0x03);          
+  I2C_Write(ADDRESS_CTRL_REG3, 0x02);          
+  I2C_Write(ADDRESS_CTRL_REG4, 0x00);       
+  I2C_Write(ADDRESS_CTRL_REG5, 0x01);         
   //Accel_SetMode(ACCEL_POLL);
   userArgumentsF=accelSetup->dataReadyCallbackArguments;
   userFunctionF=accelSetup->dataReadyCallbackFunction;

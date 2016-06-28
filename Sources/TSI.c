@@ -60,7 +60,7 @@ void TSI_SelfCalibration(void)
   touchpad54.l = TSI0_CNTR5;
   touchpad76.l = TSI0_CNTR7;
   touchpad98.l = TSI0_CNTR9;
-
+  //The calibration has completed then set threshold values
   touchpad5 = touchpad54.s.Hi + calibration;
   touchpad7 = touchpad76.s.Hi + calibration;
   touchpad8 = touchpad98.s.Lo + calibration;

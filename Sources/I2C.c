@@ -69,21 +69,6 @@ BOOL I2C_Init(const TI2CModule* const aI2CModule, const uint32_t moduleClk)
   return bTRUE;
 }
 
-/*! @brief send device address to slave
- */
-
-
-/*void I2C_Start(void)
-{
-  uint8_t data = WRITE;
- data |= (devadd<<1);
-  start();
-  I2C0_D = data;
-}*/
-
-
-/*! @brief pause the program in certain time.
- */
 void Pause(void)
 {
   int i;
@@ -92,7 +77,7 @@ void Pause(void)
     __asm ("nop");
   }
 }
-void I2C_Wait(void)                                                                   //gaiguyo
+void I2C_Wait(void)                                          
 {
 		while(!(I2C0_S & I2C_S_IICIF_MASK))
 		{}
@@ -136,13 +121,12 @@ void I2C_PollRead(const uint8_t registerAddress, uint8_t* data, const uint8_t nb
 {
   static int i;
   uint8_t addBit,empdata;
-  //I2C_Start();
+
   start() ;
-  //I2C_Wait();                                                //gaiguo  wait
-  addBit = READ;                          /////////////
-  addBit &= ~devadd<<1;                  //////////////
-  I2C0_D = addBit;                     /////////////
-  I2C_Wait();                            /////////
+  addBit = READ;                         
+  addBit &= ~devadd<<1;                 
+  I2C0_D = addBit;                
+  I2C_Wait();                            
   I2C0_D =registerAddress;
   I2C_Wait();
   I2C0_C1 |= I2C_C1_RSTA_MASK;
@@ -164,8 +148,9 @@ void I2C_PollRead(const uint8_t registerAddress, uint8_t* data, const uint8_t nb
   }
   stop();
   *data = I2C0_D;
-  Pause();                                       /////////////////houjiade
+  Pause();                                     
 }
+
 /*! @brief Reads data of a specified length starting from a specified register
  *
  * Uses interrupts as the method of data reception.
@@ -181,17 +166,17 @@ void I2C_IntRead(const uint8_t registerAddress, uint8_t* data, const uint8_t nbB
   //I2C_Start();
   start() ;
   //I2C_Wait();
-  addBit = READ;                          /////////////
-  addBit &= ~devadd<<1;                  //////////////
-  I2C0_D = addBit;                     /////////////
-  I2C_Wait();                            /////////
+  addBit = READ;                       
+  addBit &= ~devadd<<1;             
+  I2C0_D = addBit;                  
+  I2C_Wait();                        
   I2C0_D = registerAddress;
   I2C_Wait();
   I2C0_C1 |= I2C_C1_RSTA_MASK;  //restart
   addBit = READ;
   addBit |= devadd<<1;
   I2C0_D = addBit;
-  //I2C_Wait();
+  
   I2C0_C1 &=~ I2C_C1_TX_MASK;
   I2C0_C1 &=~ I2C_C1_TXAK_MASK;
   empdata = I2C0_D;

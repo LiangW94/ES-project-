@@ -26,11 +26,7 @@ BOOL UART_Init(const uint32_t baudRate, const uint32_t moduleClk)
   PORTE_PCR16 = 3<<8;		  /*!Set MUX(bit 10 to 8) to 3(011) in PORTE16 to choose ALT3 to choose UART2_TX.*/
   PORTE_PCR17 = 3<<8;		  /*!Set MUX(bit 10 to 8) to (011)3 in PORTE17 to choose ALT3 to choose UART2_RX.*/
   SIM_SCGC4 = 1<<12;		  /*! Enable UART2 clock gate control. UART2:12.*/
-  //UART2_C2 = 0x00;		  /*Turn Receiver and transmitter off.TE RE*/
   UART2_C1 = 0x00;		  /*!8 bits data, Parity function disabled. PE*/
-  //UART2_C3 = 0x00;		  /*Disable interrupt.*/
-  //UART2_C4 = 0x00;
-  //UART2_C5 = 0x00;
   UART2_MODEM = 0x00;
   SBR.l = (moduleClk/baudRate)/16;	 /*!Baud Rate Generation.*/
   brfa = (((moduleClk<<5)/(baudRate<<4))-(SBR.l<<5));
